@@ -1,0 +1,7 @@
+prompt_style: "qwen-instruct"
+temperature: 0.0
+top_p: 1.0
+k: 1
+n_sampling: 1
+max_tokens: 16384
+seed: 0
