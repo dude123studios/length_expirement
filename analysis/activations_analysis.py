@@ -27,3 +27,35 @@ def plot_cosine_similarity_layer_by_layer(deltas: torch.Tensor, save_path: Path)
     plt.savefig(save_path, dpi=300)  # High-resolution image
     plt.close()  # Close the plot to avoid display in notebooks or memory buildup
 
+def plot_cosine_similarity_layer_by_layer(
+    deltas1: torch.Tensor,
+    deltas2: torch.Tensor,
+    save_path: Path,
+    model_name_1: str = "Model 1",
+    model_name_2: str = "Model 2"
+):
+    deltas1 = np.array(deltas1)
+    plots = [deltas1]
+    titles = [f"Activation Change per Token – {model_name_1}"]
+
+    if deltas2 is not None:
+        deltas2 = np.array(deltas2)
+        plots.append(deltas2)
+        titles.append(f"Activation Change per Token – {model_name_2}")
+
+    fig, axs = plt.subplots(len(plots), 1, figsize=(10, 4 * len(plots)), sharex=True)
+
+    if len(plots) == 1:
+        axs = [axs]
+
+    for i, (ax, data, title) in enumerate(zip(axs, plots, titles)):
+        im = ax.imshow(data.T, aspect='auto', cmap='RdYlGn', interpolation='nearest')
+        ax.set_title(title)
+        ax.set_ylabel("Layer")
+        if i == len(plots) - 1:
+            ax.set_xlabel("Token Step")
+
+    fig.colorbar(im, ax=axs, orientation='vertical', label="Cosine Similarity")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.close()
