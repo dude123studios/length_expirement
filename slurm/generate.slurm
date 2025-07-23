@@ -104,9 +104,3 @@ HOURS=$((ELAPSED_SECONDS / 3600))
 MINUTES=$(((ELAPSED_SECONDS % 3600) / 60))
 SECONDS=$((ELAPSED_SECONDS % 60))
 echo "TOTAL JOB TIME: ${HOURS}h ${MINUTES}m ${SECONDS}s (${ELAPSED_SECONDS} seconds)"
-
-# uv run generate_activations.py \
-#   --model_name_or_path "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" \
-#   --benchmark_name "math" \
-#   --sampling_config "qwen-instruct.yaml" \
-#   --output_dir "/home/mila/p/prateek.humane/scratch/llm-reasoning-activations/activations"
