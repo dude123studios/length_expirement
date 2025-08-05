@@ -19,6 +19,32 @@ def compute_cosine_similarity(activations: torch.Tensor) -> torch.Tensor:
 
     return transitions
 
+def plot_cosine_similarity_histogram(
+    sims1: list,
+    sims2: list,
+    save_path: Path,
+    model_name_1: str = "Model 1",
+    model_name_2: str = "Model 2",
+    title: str = "cosine similarity"
+):
+
+    # Plot histograms
+    plt.figure(figsize=(8, 6))
+    plt.hist(sims1, alpha=0.6, label=model_name_1, edgecolor='black', bins='auto')
+    plt.hist(sims2, alpha=0.6, label=model_name_2, edgecolor='black', bins='auto')
+
+    # Labels and legend
+    plt.xlabel('cosine similarity')
+    plt.ylabel('Frequency')
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
 def plot_cosine_similarity_layer_by_layer(
     deltas1: torch.Tensor,
     deltas2: torch.Tensor,

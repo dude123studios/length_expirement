@@ -36,7 +36,7 @@ def load_activations_idx(output_dir: Path, example_idx: int):
     # Load tensors
     activations_path = os.path.join(output_dir, f"example_{example_idx}_activations.pt")
     output_ids_path = os.path.join(output_dir, f"example_{example_idx}_output_ids.pt")
-    
+
     activations_tensor = torch.load(activations_path)
     output_token_ids = torch.load(output_ids_path)
 

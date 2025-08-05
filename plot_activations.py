@@ -27,11 +27,11 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
     for example_idx in range(args.start_idx, args.end_idx):
-        activations1, output_token_ids1 = load_activations_idx(args.activations_dir, example_idx)
-        transitions1 = compute_cosine_similarity(activations1)
+        activations, output_token_ids = load_activations_idx(args.activations_dir, example_idx)
+        transitions = compute_cosine_similarity(activations)
 
         plot_cosine_similarity_layer_by_layer(
-            transitions1,
+            transitions,
             None,
             os.path.join(args.plot_dir, f"example_{example_idx}_cos_similarity.png"),
             model_name_1=args.model_name_or_path,
@@ -40,11 +40,11 @@ def main():
         print('Saved cosine similarity plot')
 
         # plot the tokens
-        output_text1 = tokenizer.convert_ids_to_tokens(output_token_ids1[0], skip_special_tokens=True)
+        output_text = tokenizer.convert_ids_to_tokens(output_token_ids[0], skip_special_tokens=True)
 
         plot_token_cosine_similarity_colored(
-            transitions1,
-            output_text1,
+            transitions,
+            output_text,
             save_path=os.path.join(args.plot_dir, f"example_{example_idx}_token_colored.png"),
             title=f"Cosine Similarity (Layer-Averaged) – Example {example_idx}"
         )
