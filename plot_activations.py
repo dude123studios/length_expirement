@@ -4,7 +4,8 @@ import json
 from tqdm import tqdm
 
 from utils.activations_loader import load_activations_idx
-from analysis.activations_analysis import compute_cosine_similarity, plot_cosine_similarity_layer_by_layer, plot_token_cosine_similarity_colored
+from analysis.activations_analysis import compute_cosine_similarity
+from analysis.plotting_utils import plot_cosine_similarity_layer_by_layer, plot_token_cosine_similarity_colored
 
 from transformers import AutoTokenizer
 
