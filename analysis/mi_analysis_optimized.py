@@ -336,7 +336,7 @@ def compute_mi_rbf_cka_batched(
 # Unified front-end
 # ======================================================================================
 
-def compute_mi_test(
+def compute_mi_transitions(
     activations: torch.Tensor,
     *,
     layer: Optional[int | Literal["last", "all"]] = "last",
@@ -376,8 +376,56 @@ def compute_mi_test(
             raise ValueError("rbf_mode must be 'stream' or 'batch'")
     raise ValueError("method must be 'linear' or 'rbf'")
 
+def compute_mi_batch(
+    x: torch.Tensor,  # [B, H]
+    y: torch.Tensor,  # [B, H]
+    *,
+    sigma: float = 50.0,
+    eps: float = 1e-12,
+    use_double: bool = False,
+    chunk_size: int = 2048,
+    show_progress: bool = False,
+) -> torch.Tensor:
+    """
+    MI-like score (streaming RBF CKA) across a batch of vector pairs.
+
+    Args:
+        x, y: [B, H] tensors, same device and same shape.
+        sigma, eps, use_double, chunk_size: Passed to the streaming RBF CKA.
+        show_progress: If True, wraps batch loop in tqdm.
+
+    Returns:
+        scores: [B] tensor with one scalar score per row in the batch.
+    """
+    if x.shape != y.shape:
+        raise ValueError(f"x and y must have the same shape, got {x.shape} vs {y.shape}")
+    if x.device != y.device:
+        raise ValueError(f"x and y must be on the same device, got {x.device} vs {y.device}")
+    if x.ndim != 2:
+        raise ValueError(f"x and y must be 2D [B, H], got ndim={x.ndim}")
+
+    B, H = x.shape
+    scores = []
+    it = range(B)
+    if show_progress:
+        try:
+            from tqdm import tqdm as _tqdm
+            it = _tqdm(it, desc="MI batch")
+        except Exception:
+            pass
+
+    for i in it:
+        scores.append(
+            _rbf_cka_pair_streaming(
+                x[i], y[i],
+                sigma=sigma, eps=eps, use_double=use_double, chunk_size=chunk_size
+            )
+        )
+    return torch.stack(scores, dim=0)  # [B]
+
 __all__ = [
-    "compute_mi_test",
+    "compute_mi_batch",
+    "compute_mi_transitions",
     "compute_mi_linear_cka",
     "compute_mi_rbf_cka_streaming",
     "compute_mi_rbf_cka_batched",

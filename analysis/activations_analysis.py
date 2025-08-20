@@ -1,5 +1,4 @@
-from analysis.mi_analysis_optimized import compute_mi_test
-
+from analysis.mi_analysis_optimized import compute_mi_transitions
 import numpy as np
 from tqdm import tqdm
 
@@ -18,7 +17,7 @@ def compute_cosine_similarity(activations: torch.Tensor) -> torch.Tensor:
 
     return transitions
 
-def compute_mi(activations: torch.Tensor) -> torch.Tensor:
+def compute_transitions_mi(activations: torch.Tensor) -> torch.Tensor:
     num_tokens, num_layers, hidden_dim = activations.size()
     print(activations.device)
 
@@ -37,7 +36,7 @@ def compute_mi(activations: torch.Tensor) -> torch.Tensor:
  
 
     # Only calculating the last layer with non-linear rbf kernel for now 
-    last_layer_scores = compute_mi_test(
+    last_layer_scores = compute_mi_transitions(
         activations,            # [T, L, H]
         method="rbf",
         rbf_mode="stream",      # critical

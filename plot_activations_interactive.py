@@ -4,7 +4,7 @@ import json
 from tqdm import tqdm
 
 from utils.activations_loader import load_activations_idx
-from analysis.activations_analysis import compute_cosine_similarity, compute_mi
+from analysis.activations_analysis import compute_cosine_similarity, compute_transitions_mi
 from analysis.plotting_utils import get_cosine_similarity_layer_by_layer, get_token_cosine_similarity_colored_html
 
 from transformers import AutoTokenizer
@@ -29,11 +29,11 @@ analysis_methods = {"Cosine Similarity":"cos", "Mutual Information (HSIC)":"mi"}
 # === Core logic
 def load_example(example_idx, layer_idx, average_layers, analysis_method):
     index = args.start_idx + example_idx
-    activations, output_token_ids = load_activations_idx(args.activations_dir, index)
+    activations, output_token_ids, _ = load_activations_idx(args.activations_dir, index)
     if analysis_methods[analysis_method] == "cos":
         transitions = compute_cosine_similarity(activations)  # shape: [tokens-1, layers]
     elif analysis_methods[analysis_method] == "mi":
-        transitions = compute_mi(activations)  # shape: [tokens-1, layers]
+        transitions = compute_transitions_mi(activations)  # shape: [tokens-1, layers]
 
     tokens = tokenizer.convert_ids_to_tokens(output_token_ids[0], skip_special_tokens=True)
 
