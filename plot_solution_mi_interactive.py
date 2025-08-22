@@ -11,6 +11,7 @@ from transformers import AutoTokenizer
 
 from utils.activations_loader import load_activations_idx, get_model_activations
 from analysis.mi_analysis_optimized import compute_mi_batch
+from analysis.mi_analysis import estimate_mi_hsic
 from analysis.plotting_utils import get_cosine_similarity_layer_by_layer, get_token_cosine_similarity_colored_html
 
 
@@ -40,7 +41,7 @@ def load_example(example_idx: int):
     index = args.start_idx + int(example_idx)
     activations, output_token_ids, question = load_activations_idx(args.activations_dir, index)
 
-    tokens = tokenizer.convert_ids_to_tokens(output_token_ids[0], skip_special_tokens=True)
+    tokens = tokenizer.convert_ids_to_tokens(output_token_ids[0], skip_special_tokens=False)
 
     return activations, tokens, question
 
@@ -56,7 +57,7 @@ def compute_and_render(example_number: int, ground_truth_text: str, apply_chat_t
     # TODO: support chat template more generally for benchmarks
     if apply_chat_template == True:
         messages = get_prompt(question, 'qwen-instruct', 'math')
-        mesasges.append({"role": "assistant", "content": ground_truth_text})
+        messages.append({"role": "assistant", "content": ground_truth_text})
         input_ids = tokenizer.apply_chat_template(messages, return_tensors="pt")
     else:
         batch_encoding = tokenizer(ground_truth_text, return_tensors="pt")
@@ -65,6 +66,7 @@ def compute_and_render(example_number: int, ground_truth_text: str, apply_chat_t
     # --- get ground-truth final-layer rep at last token ---
     gt_activations = get_model_activations(args.model_name_or_path, input_ids) # [T, H]
     gt_activations = gt_activations[-1, :] # [H] take the final token and layer representation
+
     gt_activations = gt_activations.unsqueeze(0).expand(num_tokens, -1) # [T, H] batch it along token dimension
 
     # --- MI per token vs GT ---
@@ -73,11 +75,18 @@ def compute_and_render(example_number: int, ground_truth_text: str, apply_chat_t
         gt_activations, # [T, H]
     )
 
+    # print(num_tokens, len(tokens))
+    # mi_scores = torch.zeros(num_tokens)
+    # for t in tqdm(range(num_tokens)):
+    #     if tokens[t] == "Wait" or t < 10:
+    #         mi_scores[t] = estimate_mi_hsic(example_activations[t, :], gt_activations)
+
     # --- Token heatmap HTML (reusing your existing function; treat MI like a "similarity") ---
     token_html = get_token_cosine_similarity_colored_html(
         mi_scores.cpu(),
         tokens,
-        normalize=True
+        normalize=True,
+        pad_first_token=False,
     )
 
     # --- Line plot of MI over tokens ---

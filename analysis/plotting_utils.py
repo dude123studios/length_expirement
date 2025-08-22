@@ -119,10 +119,16 @@ def plot_token_cosine_similarity_colored(
 def get_token_cosine_similarity_colored_html(
     transitions: torch.Tensor,
     tokens: list,
-    normalize: bool=False
+    normalize: bool=False,
+    pad_first_token: bool=True
 ) -> str:
     # [num_tokens-1] -> [num_tokens]
-    similarities = torch.cat([torch.tensor([transitions.max() if normalize else 1.0]), transitions])  # First token = similarity to itself
+    
+    # TODO: make one token plotting utill and remove the pad_first_token option
+    if pad_first_token:
+        similarities = torch.cat([torch.tensor([transitions.max() if normalize else 1.0]), transitions])  # First token = similarity to itself
+    else:
+        similarities = transitions
 
     if normalize:
         norm = colors.Normalize(vmin=similarities.min(), vmax=similarities.max())

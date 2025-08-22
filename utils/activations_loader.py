@@ -75,6 +75,7 @@ def load_activations_idx(output_dir: Path, example_idx: int, device=None):
 
     return activations_tensor, output_token_ids, question
 
+# TODO: pass in the model and tokenizer directly so we don't have to keep reloading it
 def get_model_activations(model_name_or_path: str, input_ids: torch.Tensor, device=None):
     if device is None:
         device = get_device()
