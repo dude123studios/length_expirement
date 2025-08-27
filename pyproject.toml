@@ -9,7 +9,9 @@ dependencies = [
     "datasets>=4.0.0",
     "gradio>=5.40.0",
     "matplotlib>=3.10.3",
+    "plotly[express]>=6.3.0",
     "pyyaml>=6.0.2",
+    "scikit-learn>=1.7.1",
     "torch>=2.7.1",
     "transformers>=4.53.2",
 ]

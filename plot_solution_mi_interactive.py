@@ -29,7 +29,6 @@ parser.add_argument('--end_idx', type=int, default=1)
 args = parser.parse_args()
 
 tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
-analysis_methods = {"Cosine Similarity":"cos", "Mutual Information (HSIC)":"mi"}
 
 def load_example(example_idx: int):
     """
