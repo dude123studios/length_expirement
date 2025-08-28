@@ -157,3 +157,41 @@ def get_cosine_similarity_layer_by_layer(
     plt.tight_layout()
 
     return fig 
+
+
+def plot_similarity_matrix(
+    values: torch.Tensor,
+    tokens: list, 
+    save_path: Path,
+):
+    X = values.to(dtype=torch.float32, device="cpu")
+    # X = values.detach().cpu().numpy()
+
+    # Mask lower triangle
+    mask = np.triu(np.ones_like(X, dtype=bool), k=0)
+    tri = np.where(mask, X, np.nan)
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 7))
+    im = ax.imshow(tri, interpolation="nearest")
+    # ax.set_xticks(np.arange(len(values)))
+    # ax.set_yticks(np.arange(len(values)))
+    # ax.set_xticklabels(values, rotation=45, ha="right")
+    # ax.set_yticklabels(values)
+    #
+    # # Annotate values
+    # for i in range(len(values)):
+    #     for j in range(i, len(values)):
+    #         val = tri[i, j]
+    #         if not np.isnan(val):
+    #             ax.text(j, i, f"{val:.2f}", ha="center", va="center")
+
+    ax.set_title("Pairwise Cosine Similarity (Upper Triangle)")
+    ax.set_xlabel("Token j")
+    ax.set_ylabel("Token i")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+
+    # Save image
+    plt.savefig(save_path)
+    plt.close(fig)

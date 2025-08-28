@@ -17,6 +17,13 @@ def compute_cosine_similarity(activations: torch.Tensor) -> torch.Tensor:
 
     return transitions
 
+def compute_cosine_similarity_pairwise(x: torch.Tensor) -> torch.Tensor:
+    # Expand x so we can compare all pairs
+    x1 = x.unsqueeze(1)              # (N, 1, D)
+    x2 = x.unsqueeze(0)              # (1, N, D)
+    # Broadcasting: result (N, N)
+    return cosine_similarity(x1, x2, dim=2)
+
 def compute_transitions_mi(activations: torch.Tensor) -> torch.Tensor:
     num_tokens, num_layers, hidden_dim = activations.size()
     print(activations.device)
