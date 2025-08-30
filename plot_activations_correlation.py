@@ -4,10 +4,12 @@ import os
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-
+from tqdm import tqdm
 
 import torch
 from transformers import AutoTokenizer
+from sklearn.decomposition import PCA
+from torch.nn.functional import cosine_similarity
 
 from utils.activations_loader import load_activations_idx, get_model_activations
 from analysis.activations_analysis import compute_cosine_similarity_pairwise
@@ -24,10 +26,10 @@ parser.add_argument('--plot_dir')
 parser.add_argument('--start_idx', type=int, default=0)
 parser.add_argument('--end_idx', type=int, default=1)
 
-parser.add_argument('--do_euclidean', type=bool, default=True)
-parser.add_argument('--do_correlation', type=bool, default=True)
-parser.add_argument('--do_cosine', type=bool, default=True)
-parser.add_argument('--do_pca_cosine', type=bool, default=True)
+parser.add_argument('--do_cosine', type=bool, default=False)
+parser.add_argument('--do_pca_cosine', type=bool, default=False)
+parser.add_argument('--do_momentum', type=bool, default=False)
+parser.add_argument('--do_pca_momentum', type=bool, default=False)
 
 args = parser.parse_args()
 
@@ -59,6 +61,7 @@ def plot_adjacent_similarity(
 
     adj_hover = []
     best_hover = []
+    markers = []
 
     for i in range(N - 2):
         j = i + 1
@@ -77,13 +80,14 @@ def plot_adjacent_similarity(
         best_idx.append(best_j)
 
         adj_hover.append(
-            f"i={i} ({tokens[i]}) ↔ j={j} ({tokens[j]})<br>"
-            f"adjacent cos={adj:.4f}"
+            f"{tokens[i]} ↔ {tokens[j]}<br>"
         )
         best_hover.append(
-            f"i={i} ({tokens[i]}) → best={best_j} ({tokens[best_j]})<br>"
-            f"best non-adj cos={best_v:.4f}"
+            f"{tokens[i]} → {tokens[best_j]}<br>"
+            f"{i} ↔ {best_j}<br>"
         )
+
+        markers.append("square" if tokens[i] in SPECIAL_TOKENS else "circle")
 
     # --- plotly figure ---
     fig = go.Figure()
@@ -93,6 +97,7 @@ def plot_adjacent_similarity(
         name="Adjacent cosine (i, i+1)",
         hovertemplate="%{text}<br>y=%{y:.4f}<extra></extra>",
         text=adj_hover,
+        marker=dict(symbol=markers, size=9)
     ))
 
     fig.add_trace(go.Scatter(
@@ -100,6 +105,7 @@ def plot_adjacent_similarity(
         name="Best non-adjacent (i+2:)",
         hovertemplate="%{text}<br>y=%{y:.4f}<extra></extra>",
         text=best_hover,
+        marker=dict(symbol=markers, size=9)
     ))
 
     fig.update_layout(
@@ -112,21 +118,96 @@ def plot_adjacent_similarity(
     # --- Save ---
     fig.write_html(save_path, include_plotlyjs="cdn")
 
+def plot_momentum(
+    activations: torch.Tensor, # (num_tokens, num_features) / (N,d)
+    tokens: list, 
+    save_path: Path,
+    smooth_k: int = 10,
+):
+    num_tokens, num_features = activations.size()
+    velocities = activations[1:,:] - activations[:-1, :] # N-1 velocities / (N-1, d)
+
+    speeds = torch.norm(velocities, dim=1) # (N-1)
+
+    direction_coalignment = cosine_similarity(velocities[:-1], velocities[1:], dim=1)
+
+    speeds = speeds.to(dtype=torch.float32, device="cpu")
+    direction_coalignment = direction_coalignment .to(dtype=torch.float32, device="cpu")
+
+    # smooth out the speed
+    if smooth_k > 1:
+        speeds = np.convolve(speeds, np.ones(smooth_k), 'valid') / smooth_k
+        direction_coalignment = np.convolve(direction_coalignment, np.ones(smooth_k), 'valid') / smooth_k
+
+    # normalize smoothed speeds
+    speeds = (speeds - speeds.min()) / (speeds.max() - speeds.min() + 1e-9) # normalize speeds from 0 to 1 
+
+    # --- plotly figure ---
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=list(range(len(speeds))), y=speeds, mode="lines+markers",
+        name="speed",
+        hovertemplate="%{text}<br>y=%{y:.4f}<extra></extra>",
+        text=tokens[:-1],
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=list(range(len(direction_coalignment))), y=direction_coalignment, mode="lines+markers",
+        name="direction cos-sim",
+    ))
+
+    # special token markers
+    for i, tok in enumerate(tokens):
+        if tok in SPECIAL_TOKENS and i < num_tokens-1:
+            fig.add_vline(x=i, line=dict(color="red", dash="dot", width=1))
+            fig.add_annotation(
+                x=i, y=max(speeds)*1.05,  # place above curve
+                text=tok,
+                showarrow=False,
+                font=dict(color="red", size=10),
+                yanchor="bottom"
+            )
+
+    fig.update_layout(
+        title="Activation speed and direction alignment",
+        xaxis_title="tokens",
+        yaxis_title="velocity",
+        hovermode="x unified"
+    )
+
+    # --- Save ---
+    fig.write_html(save_path, include_plotlyjs="cdn")
+
 # compare every combination of activations temporally (num_tokens x num_tokens) comparisons
 def compare_activations(activations: torch.Tensor, tokens: list, plot_dir: Path):
     num_tokens, hidden_dim = activations.size()
     if args.do_cosine:
         pairwise_cos_similarity = compute_cosine_similarity_pairwise(activations)
-        print(pairwise_cos_similarity.size())
         plot_similarity_matrix(pairwise_cos_similarity, tokens, os.path.join(plot_dir, "cos_sim.png"))
         plot_adjacent_similarity(pairwise_cos_similarity, tokens, os.path.join(plot_dir, "cos_sim_simplified.html"))
+    if args.do_pca_cosine:
+        pca = PCA(n_components=0.95)
+        activations_feature_reducded = pca.fit_transform(activations.to(dtype=torch.float32, device="cpu"))
+        activations_feature_reducded = torch.tensor(activations_feature_reducded)
+        reduced_pairwise_cos_similarity = compute_cosine_similarity_pairwise(activations_feature_reducded)
+        plot_similarity_matrix(reduced_pairwise_cos_similarity, tokens, os.path.join(plot_dir, "cos_sim_pca.png"))
+        plot_adjacent_similarity(reduced_pairwise_cos_similarity, tokens, os.path.join(plot_dir, "cos_sim_simplified_pca.html"))
+    if args.do_momentum:
+        plot_momentum(activations, tokens, os.path.join(plot_dir, "momentum.html"))
+    if args.do_pca_momentum:
+        pca = PCA(n_components=0.95)
+        activations_feature_reducded = pca.fit_transform(activations.to(dtype=torch.float32, device="cpu"))
+        activations_feature_reducded = torch.tensor(activations_feature_reducded)
+        plot_momentum(activations_feature_reducded, tokens, os.path.join(plot_dir, "momentum_pca.html"))
+
 
 def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
     os.makedirs(args.plot_dir, exist_ok=True)
 
-    for example_idx in range(args.start_idx, args.end_idx):
+    for example_idx in tqdm(range(args.start_idx, args.end_idx)):
         # Make example-level directory
         ex_dir = os.path.join(args.plot_dir, f"example_{example_idx:05d}")
         os.makedirs(ex_dir, exist_ok=True)

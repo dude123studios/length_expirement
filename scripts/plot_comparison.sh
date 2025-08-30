@@ -26,5 +26,6 @@ uv run plot_dynamics.py \
 uv run plot_activations_correlation.py \
   --model_name_or_path "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" \
   --activations_dir "/network/scratch/p/prateek.humane/llm-reasoning-activations/activations/deepseek-ai_DeepSeek-R1-Distill-Qwen-7B/math/temp0.0_top-p1.0" \
-  --plot_dir "/home/mila/p/prateek.humane/scratch/llm-reasoning-activations/plots/DeepSeek-R1-Distill-Qwen-7B/" \
-  --end_idx 1
+  --plot_dir "/home/mila/p/prateek.humane/scratch/llm-reasoning-activations/plots/DeepSeek-R1-Distill-Qwen-7B/comparison_matrix/" \
+  --end_idx 1 \
+  --do_cosine False --do_pca_cosine False
