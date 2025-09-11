@@ -14,6 +14,7 @@ from torch.nn.functional import cosine_similarity
 from utils.activations_loader import load_activations_idx, get_model_activations
 from analysis.activations_analysis import compute_cosine_similarity_pairwise
 from analysis.plotting_utils import plot_similarity_matrix
+from analysis.token_analysis import normalize_token_for_match, SPECIAL_TOKENS
 
 parser = argparse.ArgumentParser()
 
@@ -33,9 +34,6 @@ parser.add_argument('--do_pca_momentum', type=bool, default=False)
 
 args = parser.parse_args()
 
-
-SPECIAL_TOKENS = {"So", "Let", "Hmm", "I", "Okay", "First", "Wait", "But", "Now", "Then",
-                  "Since", "Therefore", "If", "Maybe", "To"}
 
 def compute_cos_sim_pairwise():
     # Normalize rows and compute cosine similarity
@@ -159,7 +157,7 @@ def plot_momentum(
 
     # special token markers
     for i, tok in enumerate(tokens):
-        if tok in SPECIAL_TOKENS and i < num_tokens-1:
+        if normalize_token_for_match(tok) in SPECIAL_TOKENS and i < num_tokens-1:
             fig.add_vline(x=i, line=dict(color="red", dash="dot", width=1))
             fig.add_annotation(
                 x=i, y=max(speeds)*1.05,  # place above curve

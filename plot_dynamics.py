@@ -10,7 +10,6 @@ import string
 import plotly.express as px
 import pandas as pd
 
-
 import gradio as gr
 
 import torch
@@ -20,7 +19,7 @@ from utils.activations_loader import load_activations_idx, get_model_activations
 from analysis.mi_analysis_optimized import compute_mi_batch
 from analysis.mi_analysis import estimate_mi_hsic
 from analysis.plotting_utils import get_cosine_similarity_layer_by_layer, get_token_cosine_similarity_colored_html
-
+from analysis.token_analysis import normalize_token_for_match, SPECIAL_TOKENS
 
 parser = argparse.ArgumentParser()
 
@@ -36,21 +35,6 @@ parser.add_argument('--end_idx', type=int, default=1)
 args = parser.parse_args()
 
 
-SPECIAL_TOKENS = {"So", "Let", "Hmm", "I", "Okay", "First", "Wait", "But", "Now", "Then",
-                  "Since", "Therefore", "If", "Maybe", "To"}
-
-def _normalize_token_for_match(tok: str) -> str:
-    """
-    Try to make tokenizer pieces comparable to plain words:
-    - strip leading whitespace
-    - strip common SentencePiece/BPE markers
-    - strip leading punctuation
-    - keep case (list is capitalized), but also try a capitalized fallback
-    """
-    t = tok.lstrip()  # leading spaces
-    t = t.lstrip("▁Ġ")  # common markers
-    t = t.lstrip(string.punctuation)
-    return t
 
 def plot_layer_pca_grid_px(
     X_layer: np.ndarray,
@@ -82,7 +66,7 @@ def plot_layer_pca_grid_px(
     # mark special tokens (robust-ish to tokenizer quirks)
     specials = []
     for tok in tokens:
-        norm = _normalize_token_for_match(tok)
+        norm = normalize_token_for_match(tok)
         specials.append("special" if (norm in SPECIAL_TOKENS or norm.capitalize() in SPECIAL_TOKENS) else "normal")
     df["kind"] = pd.Categorical(specials, categories=["normal","special"])
 
@@ -147,7 +131,7 @@ def plot_layer_pca_grid(
     special_idx = []
     normal_idx = []
     for i, tok in enumerate(tokens):
-        norm = _normalize_token_for_match(tok)
+        norm = normalize_token_for_match(tok)
         if norm in SPECIAL_TOKENS:
             special_idx.append(i)
         else:
