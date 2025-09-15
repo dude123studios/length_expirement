@@ -31,6 +31,7 @@ parser.add_argument('--do_cosine', type=bool, default=False)
 parser.add_argument('--do_pca_cosine', type=bool, default=False)
 parser.add_argument('--do_momentum', type=bool, default=False)
 parser.add_argument('--do_pca_momentum', type=bool, default=False)
+parser.add_argument('--do_pca_momentum_components', type=bool, default=False)
 
 args = parser.parse_args()
 
@@ -198,6 +199,12 @@ def compare_activations(activations: torch.Tensor, tokens: list, plot_dir: Path)
         activations_feature_reducded = pca.fit_transform(activations.to(dtype=torch.float32, device="cpu"))
         activations_feature_reducded = torch.tensor(activations_feature_reducded)
         plot_momentum(activations_feature_reducded, tokens, os.path.join(plot_dir, "momentum_pca.html"))
+    if args.do_pca_momentum_components:
+        pca = PCA(n_components=6)
+        activations_feature_reducded = pca.fit_transform(activations.to(dtype=torch.float32, device="cpu"))
+        activations_feature_reducded = torch.tensor(activations_feature_reducded)
+        for i in range(6):
+            plot_momentum(activations_feature_reducded[:,i].unsqueeze(1), tokens, os.path.join(plot_dir, f"momentum_pca_{i}.html"))
 
 
 def main():
