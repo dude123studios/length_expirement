@@ -75,6 +75,37 @@ def load_activations_idx(output_dir: Path, example_idx: int, device=None):
 
     return activations_tensor, output_token_ids, question
 
+def load_activations_idx_dict(output_dir: Path, example_idx: int, device=None):
+
+    # get the question from the metadata
+    metadata = load_metadata(output_dir)
+    for meta in metadata:
+        if meta.get("example_idx") == example_idx:
+            question = meta["question"]
+            output_text = meta["output_text"]
+            break
+    if question is None:
+        raise ValueError(f"example_idx {example_idx} not found in metadata.jsonl")
+
+    if device is None:
+        device = get_device()
+
+    # Load tensors
+    activations_path = os.path.join(output_dir, f"example_{example_idx}_activations.pt")
+    output_ids_path = os.path.join(output_dir, f"example_{example_idx}_output_ids.pt")
+
+    activations_tensor = torch.load(activations_path, map_location=device)
+    output_token_ids = torch.load(output_ids_path, map_location=device)
+
+    return {
+                "example_idx": example_idx,
+                "question": question,
+                "output_text": output_text,
+                "output_token_ids": output_token_ids,
+                "activations_tensor": activations_tensor
+            }
+
+
 # TODO: pass in the model and tokenizer directly so we don't have to keep reloading it
 def get_model_activations(model_name_or_path: str, input_ids: torch.Tensor, device=None):
     if device is None:
