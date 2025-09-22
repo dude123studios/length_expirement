@@ -120,7 +120,9 @@ def get_token_cosine_similarity_colored_html(
     transitions: torch.Tensor,
     tokens: list,
     normalize: bool=False,
-    pad_first_token: bool=True
+    pad_first_token: bool=True,
+    vmin: float= -1.0,
+    vmax: float= 1.0,
 ) -> str:
     # [num_tokens-1] -> [num_tokens]
     
@@ -133,7 +135,7 @@ def get_token_cosine_similarity_colored_html(
     if normalize:
         norm = colors.Normalize(vmin=similarities.min(), vmax=similarities.max())
     else:
-        norm = colors.Normalize(vmin=-1.0, vmax=1.0)
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
     cmap = plt.get_cmap("RdYlGn")
 
