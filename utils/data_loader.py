@@ -100,6 +100,13 @@ def parse_ground_truth(example):
     else:
         return None
 
+def parse_full_solution(example):
+    if "solution" in example:
+        return str(example["solution"])
+    else:
+        return None
+
+
 def get_prompt(question, prompt_type, data_name):
     file_path = os.path.join(".", "prompts", prompt_type, f"{data_name}.py")
     if not os.path.exists(file_path):

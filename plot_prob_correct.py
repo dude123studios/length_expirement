@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import gradio as gr
 
 from utils.activations_loader import load_activations_idx_dict
-from utils.data_loader import load_benchmark, parse_question, parse_ground_truth
+from utils.data_loader import load_benchmark, parse_question, parse_ground_truth, parse_full_solution
 from analysis.token_analysis import normalize_token_for_match, SPECIAL_TOKENS
 from analysis.plotting_utils import get_token_cosine_similarity_colored_html
 
@@ -31,7 +31,7 @@ model.eval()
 
 examples = load_benchmark(args.benchmark_name)
 
-def compute_and_render(example_idx: int):
+def compute_and_render(example_idx: int, plot_full_solution: bool, txt: str):
 
     activations_data = load_activations_idx_dict(args.activations_dir, example_idx)
     model_answer = activations_data["output_text"]
@@ -41,9 +41,20 @@ def compute_and_render(example_idx: int):
     system_prompt = "Please reason step by step, and put your final answer within \\boxed{}."
     example = examples[example_idx]
     question = parse_question(example)
-    ground_truth_text = parse_ground_truth(example)
-    # TODO: add a </think> tag
-    forced_answer_text = "\nTherefore, the answer is \\boxed{"
+
+    if not plot_full_solution:
+        ground_truth_text = parse_ground_truth(example)
+        # TODO: add a </think> tag
+        forced_answer_text = "\nTherefore, the answer is \\boxed{"
+    else:
+        ground_truth_text = parse_full_solution(example)
+        forced_answer_text = "Wait, "
+        # if the text begins with a capital letter we should lower case it
+        ground_truth_text = ground_truth_text[0].lower() + ground_truth_text[1:]
+
+    if txt != "":
+        ground_truth_text = txt
+
 
     base_messages = [
         {"role": "system", "content": system_prompt},
@@ -92,7 +103,11 @@ def compute_and_render(example_idx: int):
         gathered = log_probs.gather(-1, tokenized_answer.unsqueeze(-1))  # [A, 1]
         prob_answer = gathered.squeeze(-1).sum()
         answer_log_probs.append(prob_answer.item())
-        answer_probs.append(prob_answer.exp().item())
+        if not plot_full_solution:
+            # answer_probs.append(prob_answer.exp().item())
+            answer_probs.append(prob_answer.item())
+        else:
+            answer_probs.append(prob_answer.item())
 
     #     # get entropy 
     #     probs = log_probs.exp()        # [A, V]
@@ -158,9 +173,9 @@ def compute_and_render(example_idx: int):
 
     # --- Token heatmap HTML ---
     token_html = get_token_cosine_similarity_colored_html(
-        answer_probs,
+        torch.tensor(answer_probs),
         model_answer_tokens_str,
-        normalize=False,
+        normalize=True if plot_full_solution else False,
         pad_first_token=False,
         vmin=0.0,
         vmax=1.0
@@ -175,6 +190,8 @@ with gr.Blocks() as demo:
     gr.Markdown("## Evolution of solution confidence")
 
     example_input = gr.Number(value=0, precision=0, label="Example number (relative to start_idx)")
+    solution_checkbox = gr.Checkbox(label="full soultion trace", value=False)
+    gt_text = gr.Textbox(lines=2, label="Ground-truth solution text")
     run_btn = gr.Button("Compute")
 
     label = gr.Text(label="Current Example", value="Example 0")
@@ -182,8 +199,8 @@ with gr.Blocks() as demo:
     token_html = gr.HTML(label="Tokens (colored by probability correct)")
 
     run_btn.click(
-        fn=lambda ex: compute_and_render(int(ex)),
-        inputs=[example_input],
+        fn=lambda ex, full_sol, txt: compute_and_render(int(ex), bool(full_sol), txt),
+        inputs=[example_input, solution_checkbox, gt_text],
         outputs=[token_html, plot_display, label]
     )
 
