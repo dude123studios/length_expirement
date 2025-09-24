@@ -1,0 +1,24 @@
+[
+  {
+    "example_idx": 0,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To convert the point \\((0,3)\\) from rectangular (Cartesian",
+    "high_temp_text": "To convert the point \\((0, 3)\\) from rectangular (Cart",
+    "temperature": 1.2,
+    "device": "mps"
+  },
+  {
+    "example_idx": 0,
+    "decision_position": 125,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "First, let's calculate \\(r\\):\n\n\\[ r = \\sqrt{x^",
+    "high_temp_text": "First, let's calculate \\(r\\):\n\n\\[ r = \\sqrt{x^",
+    "temperature": 1.2,
+    "device": "mps"
+  }
+]

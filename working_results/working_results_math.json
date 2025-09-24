@@ -1,0 +1,42 @@
+[
+  {
+    "example_idx": 0,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 74,
+    "length_difference": 73,
+    "greedy_text": "Okay, so I need to convert the rectangular coordinate (0, 3) to polar coordinates. Hmm, I remember t",
+    "high_temp_text": "Alright, so I need to convert the rectangular coordinates (0, 3) to polar coordinates. Hmm, okay, le",
+    "temperature": 4.0
+  },
+  {
+    "example_idx": 0,
+    "decision_position": 65,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "First, let me recall the formulas for converting from rectangular (x, y) to polar (r, \u03b8). I think th",
+    "high_temp_text": "First, let me recall the formulas for converting from rectangular (x, y) to polar (r, \u03b8). I think r ",
+    "temperature": 4.0
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "Okay, so I have this problem where a hexagon is inscribed in a circle. That means all the vertices o",
+    "high_temp_text": "Okay, so I have this problem where a hexagon is inscribed in a circle. That means all its vertices l",
+    "temperature": 4.0
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 99,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "First, I remember that in a cyclic polygon (a polygon inscribed in a circle), the opposite angles ha",
+    "high_temp_text": "Hmm, since it's a cyclic hexagon, all its vertices lie on a single circle. I remember that in cyclic",
+    "temperature": 4.0
+  }
+]

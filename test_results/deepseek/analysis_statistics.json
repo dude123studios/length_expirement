@@ -1,0 +1,21 @@
+{
+  "n_comparisons": 5,
+  "greedy_mean": 1.0,
+  "greedy_std": 0.0,
+  "greedy_median": 1.0,
+  "high_temp_mean": 37.0,
+  "high_temp_std": 29.57701810527897,
+  "high_temp_median": 55.0,
+  "difference_mean": 36.0,
+  "difference_std": 29.57701810527897,
+  "difference_median": 54.0,
+  "paired_t_test": {
+    "statistic": 2.4343224778007384,
+    "p_value": 0.07164587391725978
+  },
+  "wilcoxon_test": {
+    "statistic": 0.0,
+    "p_value": 0.10247043485974941
+  },
+  "cohens_d": 1.721325931647741
+}

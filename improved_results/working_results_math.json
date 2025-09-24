@@ -1,0 +1,272 @@
+[
+  {
+    "example_idx": 0,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To convert the point \\((0,3)\\) from rectangular (Cartesian) coordinates to polar coordinates, we nee",
+    "high_temp_text": "To convert the point \\((0,3)\\) from rectangular ( Cartesian ) coordinates to polar coordinates, we f",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 0,
+    "decision_position": 125,
+    "greedy_length": 11,
+    "high_temp_length": 11,
+    "length_difference": 0,
+    "greedy_text": "0 \\]\n\\[ y = 3 \\]\n\nFirst, let's calculate \\(r\\):\n\n\\[ r = \\sqrt{x^2 + y^2} = \\sqrt{0^2 + 3^2} = \\sqrt{",
+    "high_temp_text": "0 \\]\n\\[ y = 3 \\]\n\nFirst, let's find \\(r\\):\n\\[\nr = \\sqrt{x^2 + y^2} = \\sqrt{0^2 + 3^2} = \\sqrt{9} = 3",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 0,
+    "decision_position": 355,
+    "greedy_length": 11,
+    "high_temp_length": 11,
+    "length_difference": 0,
+    "greedy_text": ", \\frac{\\pi}{2}) \\]\n\nSo, the final answer is:\n\n\\[\n\\boxed{(3, \\frac{\\pi}{2})}\n\\]",
+    "high_temp_text": ", \\frac{\\pi}{2}) \\]\n\nTherefore, the final answer is:\n\n\\[\\boxed{(3, \\frac{\\pi}{2})}\\]",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To determine the measure of angle \\(\\alpha\\) in the given hexagon inscribed in a circle, we need to ",
+    "high_temp_text": "To determine the measure of angle \\(\\alpha\\), we first need to recall some important properties rela",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 51,
+    "greedy_length": 11,
+    "high_temp_length": 33,
+    "length_difference": 22,
+    "greedy_text": "agon is \\(180^\\circ\\).\n\nFirst, let's label the vertices of the hexagon as \\(A, B, C, D, E, F\\) in or",
+    "high_temp_text": "agon must sum to \\(180^\\circ\\) because it can be split into a pentagon with two triangles sharing th",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 337,
+    "greedy_length": 11,
+    "high_temp_length": 128,
+    "length_difference": 117,
+    "greedy_text": "### Step 3: Use the second equation\nNow, using the second equation:\n\\[\n110^\\circ + \\angle CDE = 180^",
+    "high_temp_text": "### Step 3: Substitute \\(\\angle BCD\\) into the second equation\nUsing the second equation:\n\\[\n110^\\ci",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 101,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To solve the given problem, we start with the equation:\n\\[ x^{10} + (13x - 1)^{10} = 0. \\]\n\nFirst, l",
+    "high_temp_text": "To solve the given equation \\(x^{10} + (13x-1)^{10} = 0\\), we start by rewriting it as:\n\n\\[ x^{10} =",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 101,
+    "decision_position": 37,
+    "greedy_length": 11,
+    "high_temp_length": 11,
+    "length_difference": 0,
+    "greedy_text": "{10} = 0. \\]\n\nFirst, let's rewrite the equation in a more convenient form:\n\\[ x^{10} = -(13x - 1)^{1",
+    "high_temp_text": "{10} = 0. \\]\n\nFirst, rewrite it as:\n\\[ x^{10} = -(13x - 1)^{10}. \\]\n\nNext, consider taking the magni",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 101,
+    "decision_position": 623,
+    "greedy_length": 11,
+    "high_temp_length": 40,
+    "length_difference": 29,
+    "greedy_text": "} = |r_i|^2. \\]\n\nTherefore,\n\\[ \\frac{1}{r_i \\overline{r_i}} = \\frac{1}{|r_i|^2}. \\]\n\nSince \\(r_i\\) a",
+    "high_temp_text": "} = |r_i|^2. \\]\n\nWe are required to find:\n\\[ \\sum_{i=1}^5 \\frac{1}{|r_i|^2}. \\]\n\nSince \\(r_i\\) and \\",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 102,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To factor the expression \\( ab + 5b + 2a + 10 \\), we will follow a step-by-step approach to identify",
+    "high_temp_text": "To factor the expression \\( ab + 5b + 2 + 10 \\), let's first ensure we clarify if the 't' should be ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 103,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To solve the problem, we need to find the values of \\(\\lambda\\) for which there exists an \\(x \\in [0",
+    "high_temp_text": "To find the values of \\(\\lambda\\) for which there exists an \\(x \\in [0,1]\\) such that \\(f(x) \\neq x\\",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 103,
+    "decision_position": 73,
+    "greedy_length": 11,
+    "high_temp_length": 11,
+    "length_difference": 0,
+    "greedy_text": " = \\lambda x(1 - x)\\).\n\nFirst, we need to find the fixed points of \\(f\\), i.e., the solutions to \\(f",
+    "high_temp_text": " = \\lambda x(1 - x)\\).\n\nFirst, consider the condition \\(f(f(x)) = x\\). We know that \\(f(f(x)) = \\lam",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 103,
+    "decision_position": 173,
+    "greedy_length": 11,
+    "high_temp_length": 83,
+    "length_difference": 72,
+    "greedy_text": " - 1) = 0.\n\\]\nSo, the solutions are:\n\\[\nx = 0 \\quad \\text{or} \\quad x = \\frac{\\lambda - 1}{\\lambda}.",
+    "high_temp_text": " - 1) = 0.\n\\]\nThe solutions are \\(x = 0\\) and \\(x = \\frac{\\lambda - 1}{\\lambda}\\). Since \\(0 \\le \\la",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 104,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To solve the problem, we start by analyzing the given equations of the circles and hyperbolas.\n\nFirs",
+    "high_temp_text": "To find the intersection points of the two given conic sections \\( C_1: x^2 + y^2 + 6x - 24y + 72 = ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 104,
+    "decision_position": 19,
+    "greedy_length": 10,
+    "high_temp_length": 11,
+    "length_difference": 1,
+    "greedy_text": " the given equations in a more recognizable form.\n\nFirst, consider the equation \\(x^2 + y^2 + 6x - 2",
+    "high_temp_text": " the equations of the given graphs in standard form.\n\nFirst, let's rewrite \\( x^2 + y^2 + 6x - 24y +",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 104,
+    "decision_position": 518,
+    "greedy_length": 11,
+    "high_temp_length": 14,
+    "length_difference": 3,
+    "greedy_text": " centered at \\((-3, 8)\\).\n\nNow, we need to find the intersection points of the circle and the hyperb",
+    "high_temp_text": " with centers aligned horizontally at \\((-3, 8)\\).\n\nTo find the intersections of the circle and the ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 105,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To find the median number of students in 2005 for the given counties, we need to follow these steps:",
+    "high_temp_text": "To find the median number of students for the counties in \\(2005\\), let's start by listing all the v",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 105,
+    "decision_position": 62,
+    "greedy_length": 11,
+    "high_temp_length": 128,
+    "length_difference": 117,
+    "greedy_text": ". Determine the median value from this ordered list.\n\nLet's start with step 1: Extracting the number",
+    "high_temp_text": ". Identify the median, which is the middle value (orst) if there's an odd number of items, or the av",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 105,
+    "decision_position": 151,
+    "greedy_length": 11,
+    "high_temp_length": 128,
+    "length_difference": 117,
+    "greedy_text": "9\n- Colleton: 41\n\nNow, let's move to step 2: Listing these numbers in ascending order.\n\nThe sorted l",
+    "high_temp_text": "9\n- Colleton: 41\n\nNext, we compile a list of these 2005 student counts and order them from smallest ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 106,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To determine the horizontal asymptote of the function \\( y = \\frac{4x^3 + 2x - 4}{3x^3 - 3x^2 + 5x -",
+    "high_temp_text": "To determine the value of \\( y \\) where the function \\[ y = \\frac{4x^3 + 2x - 4}{3x^3 - 3x^2 + 5x - ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 106,
+    "decision_position": 153,
+    "greedy_length": 128,
+    "high_temp_length": 11,
+    "length_difference": -117,
+    "greedy_text": " - 1 \\) is also 3.\n\n2. Since the degrees of the numerator and the denominator are the same, the hori",
+    "high_temp_text": " - 1 \\) is also 3.\n\nSince the degrees of the numerator and the denominator are equal, the horizontal",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 106,
+    "decision_position": 241,
+    "greedy_length": 11,
+    "high_temp_length": 68,
+    "length_difference": 57,
+    "greedy_text": " \\frac{4}{3}\n   \\]\n\nTherefore, the horizontal asymptote of the function is \\( y = \\frac{4}{3} \\).\n\nT",
+    "high_temp_text": " \\frac{4}{3}\n   \\]\n\n4. As \\( x \\) approaches infinity, the terms with the lowest degrees in the poly",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 107,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To determine the number of elements in the intersection of the set of all prime numbers less than 30",
+    "high_temp_text": "To determine the number of elements in the intersection of the set of all prime numbers less than 30",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 107,
+    "decision_position": 380,
+    "greedy_length": 16,
+    "high_temp_length": 12,
+    "length_difference": -4,
+    "greedy_text": ").\n   - Counting these, we find there are 9 elements.\n\nTherefore, the number of elements in the inte",
+    "high_temp_text": ").\n   - There are 9 numbers in total.\n\nTherefore, the number of elements in the intersection of the ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 108,
+    "decision_position": 0,
+    "greedy_length": 1,
+    "high_temp_length": 1,
+    "length_difference": 0,
+    "greedy_text": "To solve for \\( k \\) in the given problem, we need to analyze the properties of the ellipse and the ",
+    "high_temp_text": "To solve for \\( k \\) in the given ellipse equation \\( kx^2 + y^2 = 1 \\), we start by identifying the",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 108,
+    "decision_position": 677,
+    "greedy_length": 11,
+    "high_temp_length": 128,
+    "length_difference": 117,
+    "greedy_text": "1-k}{k}}}{2} \\).\n\nSince the circle is tangent to the ellipse at the points \\( (h \\pm r, 0) \\), the d",
+    "high_temp_text": "1-k}{k}}}{2} \\). Equating the two expressions for \\( r \\), we get:\n\\[ r = h + \\sqrt{\\frac{1-k}{k}} =",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 108,
+    "decision_position": 765,
+    "greedy_length": 11,
+    "high_temp_length": 128,
+    "length_difference": 117,
+    "greedy_text": "1-k}{k}}}{2}. \\]\n\nNow, we need to find the value of \\( k \\) such that the circle is tangent to the e",
+    "high_temp_text": "1-k}{k}}}{2} = \\sqrt{\\frac{\\left(\\frac{1-k}{4k}\\right)}} = \\sqrt{\\frac{1-k}{4k}}. \\]\nEquating the tw",
+    "temperature": 2.5
+  }
+]

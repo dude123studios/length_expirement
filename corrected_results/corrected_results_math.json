@@ -1,0 +1,42 @@
+[
+  {
+    "example_idx": 0,
+    "decision_position": 0,
+    "greedy_length": 128,
+    "high_temp_length": 128,
+    "length_difference": 0,
+    "greedy_text": " convert the point \\((0,3)\\) from rectangular (Cartesian) coordinates to polar coordinates, we need to find the values of \\(r\\) and \\(\\theta\\). The formulas for converting from rectangular coordinates",
+    "high_temp_text": " convert the point \\((0,3)\\) from rectangular coordinates to polar coordinates \\((r, \\theta)\\), we need to find the radius \\(r\\) and the angle \\(\\theta\\). The formulas for converting are:\n\\[ r = \\sqrt",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 0,
+    "decision_position": 125,
+    "greedy_length": 128,
+    "high_temp_length": 73,
+    "length_difference": -55,
+    "greedy_text": ", let's calculate \\(r\\):\n\n\\[ r = \\sqrt{x^2 + y^2} = \\sqrt{0^2 + 3^2} = \\sqrt{9} = 3 \\]\n\nNext, we need to determine \\(\\theta\\). The formula for \\(\\theta\\) is:\n\n\\[ \\theta = \\tan^{-1}\\left(\\frac{y}{x}\\ri",
+    "high_temp_text": ", calculate \\(r\\):\n\\[ r = \\sqrt{x^2 + y^2} = \\sqrt{0^2 + 3^2} = \\sqrt{9} = 3 \\]\n\nNext, calculate \\(\\theta\\):\n\\[ \\theta = \\tan^{-1}\\left(\\frac{y}{x}\\right) \\]\n\nSince \\(x = 0\\), the value \\(\\frac{y}{x} ",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 0,
+    "greedy_length": 52,
+    "high_temp_length": 128,
+    "length_difference": 76,
+    "greedy_text": " find the measure of angle \\(\\alpha\\) in the given hexagon inscribed in a circle, we need to use properties of cyclic polygons and the fact that the sum of opposite angles in a cyclic hexagon is \\(180",
+    "high_temp_text": " determine the measure of \\(\\alpha\\) in degrees for a hexagon inscribed in a circle, we need to understand how the central angles relate to the inscribed angles.\n\n1. **Given Angles:**\n   - We are prov",
+    "temperature": 2.5
+  },
+  {
+    "example_idx": 100,
+    "decision_position": 51,
+    "greedy_length": 74,
+    "high_temp_length": 128,
+    "length_difference": 54,
+    "greedy_text": ", let's label the vertices of the hexagon as \\(A, B, C, D, E, F\\) in order, with the given angles at vertices \\(F\\) and \\(B\\). The angles are:\n- \\(\\angle F = 105^\\circ\\)\n- \\(\\angle B = 110^\\circ\\)\n\nSi",
+    "high_temp_text": ", let's list the measures of all known angles provided and place these angles appropriately around the circle.\n\n1. Given: \n    - One angle is \\(105^\\circ\\) which lies at point \\(F\\), the other being \\",
+    "temperature": 2.5
+  }
+]
