@@ -48,7 +48,7 @@ OUTPUT_DIR="multi_temp_scale_results_${TIMESTAMP}"
 
 echo "📁 Output directory: $OUTPUT_DIR"
 echo "🌡️  Temperatures: 0.0, 0.7, 1.5, 2.5"
-echo "📊 Examples: 100"
+echo "📊 Examples: 500"
 echo ""
 
 # Run the multi-temperature scale experiment
@@ -57,7 +57,7 @@ python3 experiment_multi_temperature.py \
   --model_name_or_path "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" \
   --traces_dir "$DATA_DIR" \
   --output_dir "$OUTPUT_DIR" \
-  --num_examples 100 \
+  --num_examples 500 \
   --max_new_tokens 128 \
   --temperatures 0.0 0.7 1.5 2.5 \
   --seed 42 \

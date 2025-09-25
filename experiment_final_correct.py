@@ -25,6 +25,7 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 from scipy import stats
 import time
+from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Final Correct Subthought Length Experiment")
@@ -34,7 +35,7 @@ def parse_args():
                        help="Directory containing .txt trace files")
     parser.add_argument('--output_dir', default="./final_results",
                        help="Directory to save results")
-    parser.add_argument('--num_examples', type=int, default=50,
+    parser.add_argument('--num_examples', type=int, default=500,
                        help="Number of examples to process")
     parser.add_argument('--max_new_tokens', type=int, default=128,
                        help="Maximum tokens to generate per continuation")
@@ -288,6 +289,90 @@ def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tok
     # Return the position and probability tracking data
     return decision_token_position if decision_token_position else max_new_tokens, decision_token_probs_over_time
 
+def find_next_decision_token_in_original(token_ids, start_pos, decision_token_ids):
+    """Find the next decision token in the original text after start_pos"""
+    decision_token_values = set(decision_token_ids.values())
+    
+    # Look for decision tokens after the start position
+    for i in range(start_pos + 1, len(token_ids)):
+        if token_ids[i].item() in decision_token_values:
+            return i - start_pos  # Return distance from start_pos
+    
+    return None  # No decision token found
+
+def generate_continuation_with_limit(model, tokenizer, prefix_ids, temperature, max_tokens, decision_token_ids, device):
+    """Generate continuation with limit: stop when highest prob is decision token OR max_tokens reached"""
+    decision_token_values = set(decision_token_ids.values())
+    decision_token_probs_over_time = []
+    generated_tokens = []
+    
+    # Use the EXACT same pattern as the working generate_continuation function
+    input_ids = prefix_ids.unsqueeze(0).to(device)
+    attention_mask = torch.ones_like(input_ids)
+    
+    current_ids = input_ids.clone()
+    current_attention = attention_mask.clone()
+    
+    with torch.no_grad():
+        for step in range(max_tokens):
+            # Use the EXACT same model call as the working function
+            outputs = model(
+                input_ids=current_ids,
+                attention_mask=current_attention,
+                return_dict=True
+            )
+            logits = outputs.logits[0, -1, :]  # Last token logits
+            
+            # Apply temperature
+            if temperature > 0:
+                logits = logits / temperature
+                probs = torch.softmax(logits, dim=-1)
+            else:
+                probs = torch.softmax(logits, dim=-1)
+            
+            # Check if highest probability token is a decision token
+            most_likely_token_id = torch.argmax(probs).item()
+            max_prob = probs[most_likely_token_id].item()
+            
+            # Track decision token probabilities
+            decision_token_probs = []
+            for token_id in decision_token_values:
+                if token_id < len(probs):
+                    decision_token_probs.append(probs[token_id].item())
+                else:
+                    decision_token_probs.append(0.0)
+            
+            decision_token_probs_over_time.append({
+                'step': step,
+                'max_decision_prob': max(decision_token_probs) if decision_token_probs else 0.0,
+                'most_likely_token_id': most_likely_token_id,
+                'most_likely_is_decision': most_likely_token_id in decision_token_values,
+                'max_prob': max_prob
+            })
+            
+            # Stop if highest probability token is a decision token
+            if most_likely_token_id in decision_token_values:
+                print(f"🛑 Stopped at step {step}: highest prob token is decision token (prob: {max_prob:.3f})")
+                break
+            
+            # Sample next token
+            if temperature > 0:
+                next_token_id = torch.multinomial(probs, 1).item()
+            else:
+                next_token_id = most_likely_token_id
+            
+            # Store generated token
+            generated_tokens.append(next_token_id)
+            
+            # Add to sequence - use the same pattern as the working function
+            next_token_tensor = torch.tensor([[next_token_id]], device=device)
+            current_ids = torch.cat([current_ids, next_token_tensor], dim=1)
+            current_attention = torch.cat([current_attention, torch.ones((1, 1), device=device)], dim=1)
+    
+    # Return actual length generated, probability tracking, and generated tokens
+    actual_length = current_ids.size(1) - input_ids.size(1)
+    return actual_length, decision_token_probs_over_time, torch.tensor(generated_tokens)
+
 def run_single_experiment(model, tokenizer, trace_file, decision_token_ids, args, device):
     """Run experiment on a single trace file"""
     try:
@@ -310,28 +395,40 @@ def run_single_experiment(model, tokenizer, trace_file, decision_token_ids, args
         
         print(f"📋 Starting from position {start_pos} (prefix length: {len(prefix_ids)})")
         
-        # First generation: Regular temperature (0.7) with high likelihood stopping
-        regular_position, regular_probs = generate_continuation(
-            model, tokenizer, prefix_ids, temperature=args.low_temp, 
-            max_new_tokens=args.max_new_tokens, decision_token_ids=decision_token_ids, 
-            device=device, stop_on_high_likelihood=True
+        # REGULAR: Find next decision token in original text (no generation)
+        regular_length = find_next_decision_token_in_original(token_ids, start_pos, decision_token_ids)
+        if regular_length is None:
+            return None
+        
+        print(f"📏 Regular length (original text): {regular_length}")
+        
+        # HIGH TEMP: Generate until either highest prob is decision token OR X tokens
+        high_temp_length, high_temp_probs, high_temp_generated_tokens = generate_continuation_with_limit(
+            model, tokenizer, prefix_ids, temperature=args.high_temp, 
+            max_tokens=regular_length, decision_token_ids=decision_token_ids, 
+            device=device
         )
         
-        # Second generation: High temperature (1.8) with high likelihood stopping
-        high_temp_position, high_temp_probs = generate_continuation(
-            model, tokenizer, prefix_ids, temperature=args.high_temp, 
-            max_new_tokens=args.max_new_tokens, decision_token_ids=decision_token_ids, 
-            device=device, stop_on_high_likelihood=True
-        )
+        # Get the regular trace after the start position (for comparison)
+        regular_trace_after_start = token_ids[start_pos + 1:start_pos + 1 + regular_length]
+        regular_trace_text = tokenizer.decode(regular_trace_after_start, skip_special_tokens=True)
+        
+        # Calculate difference (X - actual_high_temp_length)
+        difference = regular_length - high_temp_length
         
         return {
             'file': os.path.basename(trace_file),
             'start_position': int(start_pos),
-            'regular_position': regular_position,
-            'high_temp_position': high_temp_position,
-            'regular_probs_over_time': regular_probs,
+            'regular_length': regular_length,  # Distance to next decision token in original
+            'high_temp_length': high_temp_length,  # Actual tokens generated
+            'difference': difference,  # X - actual_length
             'high_temp_probs_over_time': high_temp_probs,
-            'prefix_text': tokenizer.decode(prefix_ids, skip_special_tokens=True)[-100:]  # Last 100 chars
+            'prefix_text': tokenizer.decode(prefix_ids, skip_special_tokens=True),  # Full prefix text
+            'regular_trace_after_start': regular_trace_text,  # Regular trace after start position
+            'high_temp_generated_text': tokenizer.decode(high_temp_generated_tokens, skip_special_tokens=True),  # High-temp generated text
+            'full_original_text': text,  # Full original trace
+            'prefix_tokens': prefix_ids.tolist(),  # Token IDs of prefix
+            'decision_token_at_start': tokenizer.decode([token_ids[start_pos].item()], skip_special_tokens=True)  # The decision token we started after
         }
         
     except Exception as e:
@@ -422,15 +519,25 @@ def run_experiment(args):
     results = []
     start_time = time.time()
     
-    for i, trace_file in enumerate(trace_files[:args.num_examples]):
-        print(f"🔄 Processing {i+1}/{min(args.num_examples, len(trace_files))}: {os.path.basename(trace_file)}")
+    # Create progress bar
+    pbar = tqdm(trace_files[:args.num_examples], desc="Processing examples", unit="example")
+    
+    for i, trace_file in enumerate(pbar):
+        pbar.set_description(f"Processing {os.path.basename(trace_file)}")
         
         result = run_single_experiment(model, tokenizer, trace_file, decision_token_ids, args, device)
         if result:
             results.append(result)
-            print(f"   ✅ Regular: {result['regular_position']}, High-temp: {result['high_temp_position']}")
+            pbar.set_postfix({
+                'Regular': result['regular_length'], 
+                'High-temp': result['high_temp_length'],
+                'Difference': result['difference'],
+                'Valid': len(results)
+            })
         else:
-            print(f"   ⚠️ Skipped (no valid decision tokens)")
+            pbar.set_postfix({'Valid': len(results), 'Skipped': 'No decision tokens'})
+    
+    pbar.close()
     
     if not results:
         print("❌ No valid results collected!")
@@ -447,35 +554,38 @@ def run_experiment(args):
         return
     
     # Analysis
-    regular_positions = [r['regular_position'] for r in results]
-    high_temp_positions = [r['high_temp_position'] for r in results]
+    regular_lengths = [r['regular_length'] for r in results]
+    high_temp_lengths = [r['high_temp_length'] for r in results]
+    differences = [r['difference'] for r in results]
     
-    regular_avg = np.mean(regular_positions)
-    high_temp_avg = np.mean(high_temp_positions)
-    regular_std = np.std(regular_positions)
-    high_temp_std = np.std(high_temp_positions)
+    regular_avg = np.mean(regular_lengths)
+    high_temp_avg = np.mean(high_temp_lengths)
+    difference_avg = np.mean(differences)
+    regular_std = np.std(regular_lengths)
+    high_temp_std = np.std(high_temp_lengths)
+    difference_std = np.std(differences)
     
-    # Statistical test (using regular - high for consistency with histograms)
-    t_stat, p_value = stats.ttest_rel(regular_positions, high_temp_positions)
+    # Statistical test on differences
+    t_stat, p_value = stats.ttest_1samp(differences, 0)
     
     # Data integrity checks
     print(f"\n🔍 DATA INTEGRITY CHECKS:")
     print(f"   Sample size: {len(results)}")
-    print(f"   Regular positions range: {min(regular_positions)} - {max(regular_positions)}")
-    print(f"   High-temp positions range: {min(high_temp_positions)} - {max(high_temp_positions)}")
-    print(f"   Both methods hit max length: {sum(1 for p in regular_positions if p == args.max_new_tokens)} regular, {sum(1 for p in high_temp_positions if p == args.max_new_tokens)} high-temp")
+    print(f"   Regular lengths range: {min(regular_lengths)} - {max(regular_lengths)}")
+    print(f"   High-temp lengths range: {min(high_temp_lengths)} - {max(high_temp_lengths)}")
+    print(f"   Differences range: {min(differences)} - {max(differences)}")
     
-    # Check for suspicious patterns
-    shorter_high_temp = sum(1 for r, h in zip(regular_positions, high_temp_positions) if h < r)
-    shorter_regular = sum(1 for r, h in zip(regular_positions, high_temp_positions) if r < h)
-    equal = sum(1 for r, h in zip(regular_positions, high_temp_positions) if r == h)
+    # Check for patterns
+    high_temp_stopped_early = sum(1 for d in differences if d > 0)  # High temp stopped before reaching X
+    high_temp_reached_limit = sum(1 for d in differences if d == 0)  # High temp reached X without finding decision token
     
-    print(f"   High-temp shorter: {shorter_high_temp}, Regular shorter: {shorter_regular}, Equal: {equal}")
+    print(f"   High-temp stopped early (found decision token): {high_temp_stopped_early}")
+    print(f"   High-temp reached limit (no decision token): {high_temp_reached_limit}")
     
     print(f"\n📊 RESULTS:")
-    print(f"   Regular temp (T={args.low_temp}): {regular_avg:.2f} ± {regular_std:.2f}")
-    print(f"   High temp (T={args.high_temp}): {high_temp_avg:.2f} ± {high_temp_std:.2f}")
-    print(f"   Difference (Regular - High): {regular_avg - high_temp_avg:.2f}")
+    print(f"   Regular length (original text): {regular_avg:.2f} ± {regular_std:.2f}")
+    print(f"   High-temp length (generated): {high_temp_avg:.2f} ± {high_temp_std:.2f}")
+    print(f"   Difference (X - actual): {difference_avg:.2f} ± {difference_std:.2f}")
     print(f"   T-test p-value: {p_value:.4f}")
     print(f"   Significant: {'Yes' if p_value < 0.05 else 'No'}")
     
@@ -494,9 +604,12 @@ def run_experiment(args):
             'num_examples': int(len(results)),
             'regular_avg': float(regular_avg),
             'high_temp_avg': float(high_temp_avg),
+            'difference_avg': float(difference_avg),
             'regular_std': float(regular_std),
             'high_temp_std': float(high_temp_std),
-            'difference': float(regular_avg - high_temp_avg),
+            'difference_std': float(difference_std),
+            'high_temp_stopped_early': int(high_temp_stopped_early),
+            'high_temp_reached_limit': int(high_temp_reached_limit),
             't_statistic': float(t_stat),
             'p_value': float(p_value),
             'significant': bool(p_value < 0.05)
@@ -515,6 +628,10 @@ def run_experiment(args):
     
     # Create CSV file with the data
     create_results_csv(results, args.output_dir)
+    
+    # Save full traces for test experiments
+    if args.num_examples <= 10:  # Only for small test runs
+        save_full_traces(results, args.output_dir)
     
     elapsed = time.time() - start_time
     print(f"⏱️ Total time: {elapsed:.1f}s")
@@ -846,9 +963,9 @@ def create_essential_aggregated_plots(results, output_dir, regular_avg, high_tem
     print("📊 Creating essential aggregated plots...")
     
     # Extract data
-    regular_lengths = [r['regular_position'] for r in results]
-    high_temp_lengths = [r['high_temp_position'] for r in results]
-    differences = [r - h for r, h in zip(regular_lengths, high_temp_lengths)]
+    regular_lengths = [r['regular_length'] for r in results]
+    high_temp_lengths = [r['high_temp_length'] for r in results]
+    differences = [r['difference'] for r in results]
     
     # Create main aggregated comparison plot
     fig = make_subplots(
@@ -1023,9 +1140,10 @@ def create_results_csv(results, output_dir):
         csv_data.append({
             'example_id': i + 1,
             'file': result['file'],
-            'greedy_length': result['regular_position'],
-            'high_temp_length': result['high_temp_position'],
-            'difference': result['regular_position'] - result['high_temp_position']
+            'start_position': result['start_position'],
+            'regular_length': result['regular_length'],  # X: distance to next decision token in original
+            'high_temp_length': result['high_temp_length'],  # Actual tokens generated
+            'difference': result['difference']  # X - actual_length
         })
     
     # Create DataFrame and save to CSV
@@ -1034,16 +1152,54 @@ def create_results_csv(results, output_dir):
     df.to_csv(csv_file, index=False)
     
     print(f"📊 Results CSV saved to {csv_file}")
-    print(f"   Columns: example_id, file, greedy_length, high_temp_length, difference")
+    print(f"   Columns: example_id, file, start_position, regular_length, high_temp_length, difference")
     print(f"   Rows: {len(csv_data)} examples")
     
     # Print summary statistics
     print(f"\n📈 CSV Summary:")
-    print(f"   Greedy mean: {df['greedy_length'].mean():.2f} ± {df['greedy_length'].std():.2f}")
-    print(f"   High temp mean: {df['high_temp_length'].mean():.2f} ± {df['high_temp_length'].std():.2f}")
-    print(f"   Mean difference: {df['difference'].mean():.2f} ± {df['difference'].std():.2f}")
+    print(f"   Regular length (X) mean: {df['regular_length'].mean():.2f} ± {df['regular_length'].std():.2f}")
+    print(f"   High temp length mean: {df['high_temp_length'].mean():.2f} ± {df['high_temp_length'].std():.2f}")
+    print(f"   Mean difference (X - actual): {df['difference'].mean():.2f} ± {df['difference'].std():.2f}")
     
     return csv_file
+
+def save_full_traces(results, output_dir):
+    """Save full traces for test experiments"""
+    print("📝 Saving full traces for analysis...")
+    
+    for i, result in enumerate(results):
+        # Create trace file
+        trace_file = os.path.join(output_dir, f"trace_{i+1}_{result['file']}")
+        
+        with open(trace_file, 'w') as f:
+            f.write(f"=== EXPERIMENT TRACE {i+1} ===\n")
+            f.write(f"File: {result['file']}\n")
+            f.write(f"Start Position: {result['start_position']}\n")
+            f.write(f"Decision Token at Start: '{result['decision_token_at_start']}'\n")
+            f.write(f"Regular Length (X): {result['regular_length']}\n")
+            f.write(f"High-Temp Length: {result['high_temp_length']}\n")
+            f.write(f"Difference (X - actual): {result['difference']}\n")
+            
+            f.write(f"\n=== PART 1: PREFIX TEXT (up to decision token) ===\n")
+            f.write(f"{result['prefix_text']}\n")
+            
+            f.write(f"\n=== PART 2: REGULAR TRACE (after decision token, {result['regular_length']} tokens) ===\n")
+            f.write(f"{result['regular_trace_after_start']}\n")
+            
+            f.write(f"\n=== PART 3: HIGH-TEMP GENERATED TRACE ({result['high_temp_length']} tokens) ===\n")
+            f.write(f"{result['high_temp_generated_text']}\n")
+            
+            f.write(f"\n=== DECISION TOKEN PROBABILITIES OVER TIME ===\n")
+            for prob_data in result['high_temp_probs_over_time']:
+                f.write(f"Step {prob_data['step']}: ")
+                f.write(f"Max prob: {prob_data['max_prob']:.4f}, ")
+                f.write(f"Most likely: {prob_data['most_likely_token_id']}, ")
+                f.write(f"Is decision token: {prob_data['most_likely_is_decision']}, ")
+                f.write(f"Max decision prob: {prob_data['max_decision_prob']:.4f}\n")
+        
+        print(f"   📄 Trace {i+1} saved to {trace_file}")
+    
+    print(f"📝 All {len(results)} traces saved to {output_dir}/")
 
 if __name__ == "__main__":
     args = parse_args()

@@ -21,18 +21,5 @@ pyyaml>=6.0.0
 # Datasets and Data Loading
 datasets>=2.12.0
 
-# Interactive UI
-gradio>=3.40.0
-
 # Additional dependencies for the experiment
 typing-extensions>=4.0.0
-
-# Optional: For better performance
-# Uncomment if you have CUDA available
-# torch-audio>=2.7.1
-# torch-vision>=2.7.1
-
-# Development and testing (optional)
-# pytest>=7.0.0
-# jupyter>=1.0.0
-# ipykernel>=6.0.0

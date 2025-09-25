@@ -25,6 +25,7 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 from scipy import stats
 import time
+from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Multi-Temperature Subthought Length Experiment")
@@ -34,7 +35,7 @@ def parse_args():
                        help="Directory containing .txt trace files")
     parser.add_argument('--output_dir', default="./multi_temp_results",
                        help="Directory to save results")
-    parser.add_argument('--num_examples', type=int, default=50,
+    parser.add_argument('--num_examples', type=int, default=500,
                        help="Number of examples to process")
     parser.add_argument('--max_new_tokens', type=int, default=128,
                        help="Maximum tokens to generate per continuation")
@@ -418,19 +419,25 @@ def run_multi_temperature_experiment(args):
     results = []
     start_time = time.time()
     
-    for i, trace_file in enumerate(trace_files[:args.num_examples]):
-        print(f"🔄 Processing {i+1}/{min(args.num_examples, len(trace_files))}: {os.path.basename(trace_file)}")
+    # Create progress bar
+    pbar = tqdm(trace_files[:args.num_examples], desc="Processing examples", unit="example")
+    
+    for i, trace_file in enumerate(pbar):
+        pbar.set_description(f"Processing {os.path.basename(trace_file)}")
         
         result = run_single_multi_temperature_experiment(model, tokenizer, trace_file, decision_token_ids, args, device)
         if result:
             results.append(result)
-            # Print results for each temperature
-            temp_results = []
+            # Create postfix with temperature results
+            temp_results = {}
             for temp in args.temperatures:
-                temp_results.append(f"T={temp}: {result[f'temp_{temp}_position']}")
-            print(f"   ✅ {' | '.join(temp_results)}")
+                temp_results[f'T{temp}'] = result[f'temp_{temp}_position']
+            temp_results['Valid'] = len(results)
+            pbar.set_postfix(temp_results)
         else:
-            print(f"   ⚠️ Skipped (no valid decision tokens)")
+            pbar.set_postfix({'Valid': len(results), 'Skipped': 'No decision tokens'})
+    
+    pbar.close()
     
     if not results:
         print("❌ No valid results collected!")

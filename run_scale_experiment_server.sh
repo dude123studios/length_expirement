@@ -13,7 +13,7 @@ OUTPUT_DIR="./scale_results_${TIMESTAMP}"
 echo "📁 Results will be saved to: ${OUTPUT_DIR}"
 echo "🖥️  GPU Server Configuration:"
 echo "   - Model: DeepSeek-R1-Distill-Qwen-7B"
-echo "   - Examples: 100"
+echo "   - Examples: 500"
 echo "   - Max tokens: 128"
 echo "   - Regular temp: 0.0 (greedy)"
 echo "   - High temp: 3.0"
@@ -66,7 +66,7 @@ python3 experiment_final_correct.py \
   --model_name_or_path "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" \
   --traces_dir "$DATA_DIR" \
   --output_dir "${OUTPUT_DIR}" \
-  --num_examples 100 \
+  --num_examples 500 \
   --max_new_tokens 128 \
   --low_temp 0.0 \
   --high_temp 3.0 \

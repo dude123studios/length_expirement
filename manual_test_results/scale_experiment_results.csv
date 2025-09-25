@@ -1,0 +1,3 @@
+example_id,file,greedy_length,high_temp_length,difference
+1,example_0_output.txt,128,128,0
+2,example_100_output.txt,48,128,-80
