@@ -37,12 +37,34 @@ else:
 echo "💾 Checking system memory..."
 free -h
 
+# Check for data directory
+DATA_DIR="./data/deepseek-qwen"
+if [ ! -d "$DATA_DIR" ]; then
+    echo "❌ Data directory not found: $DATA_DIR"
+    echo ""
+    echo "📁 Please upload your data to: $DATA_DIR"
+    echo "   The directory should contain .txt files with reasoning traces"
+    echo ""
+    echo "💡 To upload data from your local machine:"
+    echo "   scp -r /path/to/your/deepseek-qwen/ user@server:/path/to/experiment/data/"
+    echo ""
+    echo "💡 Or create the directory and upload files:"
+    echo "   mkdir -p $DATA_DIR"
+    echo "   # Then upload your .txt files to this directory"
+    echo ""
+    exit 1
+fi
+
+# Count data files
+DATA_COUNT=$(ls -1 "$DATA_DIR"/*.txt 2>/dev/null | wc -l)
+echo "✅ Data directory found: $DATA_COUNT text files"
+
 # Run the full scale experiment
 echo ""
 echo "🧪 Starting scale experiment..."
 python3 experiment_final_correct.py \
   --model_name_or_path "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" \
-  --traces_dir "/Users/atharvnaphade/Downloads/atharv/deepseek-qwen" \
+  --traces_dir "$DATA_DIR" \
   --output_dir "${OUTPUT_DIR}" \
   --num_examples 100 \
   --max_new_tokens 128 \
