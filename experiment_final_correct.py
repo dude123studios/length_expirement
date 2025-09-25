@@ -16,6 +16,7 @@ import random
 import json
 import torch
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from analysis.token_analysis import SPECIAL_TOKENS
@@ -37,8 +38,8 @@ def parse_args():
                        help="Number of examples to process")
     parser.add_argument('--max_new_tokens', type=int, default=128,
                        help="Maximum tokens to generate per continuation")
-    parser.add_argument('--low_temp', type=float, default=0.7,
-                       help="Low temperature for baseline (normal generation)")
+    parser.add_argument('--low_temp', type=float, default=0.0,
+                       help="Low temperature for baseline (0.0 = greedy generation)")
     parser.add_argument('--high_temp', type=float, default=1.8,
                        help="High temperature for comparison (high randomness)")
     parser.add_argument('--seed', type=int, default=42,
@@ -70,7 +71,7 @@ def setup_device(device_arg):
     return device, dtype
 
 def load_model_and_tokenizer(model_name, device, dtype):
-    """Load model optimized for GPU/CPU"""
+    """Load model optimized for memory efficiency"""
     print(f"📥 Loading model: {model_name}")
     
     tokenizer = AutoTokenizer.from_pretrained(
@@ -83,26 +84,30 @@ def load_model_and_tokenizer(model_name, device, dtype):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    # Use device_map for better GPU utilization
-    if device.type == "cuda":
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=dtype,
-            device_map="auto",  # Automatic GPU placement
-            low_cpu_mem_usage=True,
-            trust_remote_code=True
-        )
-    else:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=dtype,
-            device_map=None,
-            low_cpu_mem_usage=True,
-            trust_remote_code=True
-        ).to(device)
+    # Memory-efficient loading with optimizations
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=dtype,
+        device_map="auto" if device.type == "cuda" else None,
+        low_cpu_mem_usage=True,
+        trust_remote_code=True,
+        # Memory optimizations
+        max_memory={0: "30GB"} if device.type == "cuda" else None,  # Reserve 6GB for system
+        offload_folder="./offload" if device.type == "cpu" else None,
+        load_in_8bit=False,  # Keep full precision for accuracy
+        load_in_4bit=False   # Keep full precision for accuracy
+    )
+    
+    if device.type != "cuda":
+        model = model.to(device)
     
     model.eval()
-    print(f"✅ Model loaded on {device}")
+    
+    # Clear cache after loading
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    
+    print(f"✅ Model loaded on {device} (memory optimized)")
     return model, tokenizer
 
 def get_decision_token_ids(tokenizer, special_tokens):
@@ -229,11 +234,19 @@ def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tok
                 'all_probs': step_probs
             })
             
-            # Check if we should stop due to high likelihood decision token (from step 0, no skipping)
-            if stop_on_high_likelihood and max_decision_prob > 0.3:  # High likelihood threshold
-                decision_token_position = step + 1  # 1-indexed position
-                print(f"🎯 Stopped at high-likelihood decision token '{max_decision_token}' at position {decision_token_position} (prob: {max_decision_prob:.3f})")
-                break  # Exit the loop, don't generate more tokens
+            # Check if we should stop when decision token is the highest probability choice
+            if stop_on_high_likelihood:
+                # Get the most likely token
+                most_likely_token_id = torch.argmax(next_token_logits).item()
+                # Check if the most likely token is a decision token
+                if most_likely_token_id in decision_token_values:
+                    decision_token_position = step + 1  # 1-indexed position
+                    # Find which decision token this is
+                    for token_str, token_val in decision_token_ids.items():
+                        if token_val == most_likely_token_id:
+                            print(f"🎯 Stopped at highest-probability decision token '{token_str}' at position {decision_token_position} (prob: {max_decision_prob:.3f})")
+                            break
+                    break  # Exit the loop, don't generate more tokens
             
             # Generate next token with temperature sampling
             if temperature > 0.0:
@@ -261,8 +274,16 @@ def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tok
             # Update for next iteration
             current_ids = torch.cat([current_ids, torch.tensor([[new_token_id]], device=device)], dim=1)
             current_attention = torch.ones_like(current_ids)
+            
+            # Memory cleanup every 10 steps
+            if step % 10 == 0 and torch.cuda.is_available():
+                torch.cuda.empty_cache()
         else:
             print(f"⚠️ No decision token found in {max_new_tokens} tokens")
+    
+    # Final memory cleanup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     
     # Return the position and probability tracking data
     return decision_token_position if decision_token_position else max_new_tokens, decision_token_probs_over_time
@@ -366,11 +387,21 @@ def run_experiment(args):
     
     device, dtype = setup_device(args.device)
     
+    # Memory monitoring
+    if torch.cuda.is_available():
+        print(f"💾 Initial GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        print(f"💾 Available GPU memory: {torch.cuda.memory_reserved(0) / 1e9:.1f} GB")
+    
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Load model and tokenizer
     model, tokenizer = load_model_and_tokenizer(args.model_name_or_path, device, dtype)
+    
+    # Memory monitoring after model loading
+    if torch.cuda.is_available():
+        print(f"💾 GPU memory after model loading: {torch.cuda.memory_allocated(0) / 1e9:.1f} GB")
+        print(f"💾 GPU memory reserved: {torch.cuda.memory_reserved(0) / 1e9:.1f} GB")
     
     # Get decision token IDs
     decision_token_ids = get_decision_token_ids(tokenizer, SPECIAL_TOKENS)
@@ -424,8 +455,8 @@ def run_experiment(args):
     regular_std = np.std(regular_positions)
     high_temp_std = np.std(high_temp_positions)
     
-    # Statistical test
-    t_stat, p_value = stats.ttest_rel(high_temp_positions, regular_positions)
+    # Statistical test (using regular - high for consistency with histograms)
+    t_stat, p_value = stats.ttest_rel(regular_positions, high_temp_positions)
     
     # Data integrity checks
     print(f"\n🔍 DATA INTEGRITY CHECKS:")
@@ -444,12 +475,12 @@ def run_experiment(args):
     print(f"\n📊 RESULTS:")
     print(f"   Regular temp (T={args.low_temp}): {regular_avg:.2f} ± {regular_std:.2f}")
     print(f"   High temp (T={args.high_temp}): {high_temp_avg:.2f} ± {high_temp_std:.2f}")
-    print(f"   Difference: {high_temp_avg - regular_avg:.2f}")
+    print(f"   Difference (Regular - High): {regular_avg - high_temp_avg:.2f}")
     print(f"   T-test p-value: {p_value:.4f}")
     print(f"   Significant: {'Yes' if p_value < 0.05 else 'No'}")
     
     # Warning if results seem too good to be true
-    if p_value < 0.01 and abs(high_temp_avg - regular_avg) > 10:
+    if p_value < 0.01 and abs(regular_avg - high_temp_avg) > 10:
         print(f"⚠️  WARNING: Very significant result with large effect size. Verify this is not due to:")
         print(f"   - Insufficient sample size")
         print(f"   - Data preprocessing issues")
@@ -465,7 +496,7 @@ def run_experiment(args):
             'high_temp_avg': float(high_temp_avg),
             'regular_std': float(regular_std),
             'high_temp_std': float(high_temp_std),
-            'difference': float(high_temp_avg - regular_avg),
+            'difference': float(regular_avg - high_temp_avg),
             't_statistic': float(t_stat),
             'p_value': float(p_value),
             'significant': bool(p_value < 0.05)
@@ -479,19 +510,11 @@ def run_experiment(args):
     
     print(f"💾 Results saved to {results_file}")
     
-    # Create visualizations
-    create_visualizations(results, args.output_dir, regular_avg, high_temp_avg, args.low_temp, args.high_temp)
+    # Create essential aggregated visualizations
+    create_essential_aggregated_plots(results, args.output_dir, regular_avg, high_temp_avg, args.low_temp, args.high_temp)
     
-    # Create decision token probability histograms
-    create_decision_token_probability_histograms(results, args.output_dir, args.low_temp, args.high_temp)
-    
-    # Create publication-ready plots
-    try:
-        from publication_plots import create_publication_plots
-        create_publication_plots(results, args.output_dir, args.low_temp, args.high_temp, args.model_name_or_path)
-    except ImportError as e:
-        print(f"⚠️ Could not import publication_plots: {e}")
-        print("📊 Using standard plots instead")
+    # Create CSV file with the data
+    create_results_csv(results, args.output_dir)
     
     elapsed = time.time() - start_time
     print(f"⏱️ Total time: {elapsed:.1f}s")
@@ -685,6 +708,342 @@ def create_decision_token_probability_histograms(results, output_dir, regular_te
     prob_evolution_file = os.path.join(output_dir, 'decision_token_probability_evolution.html')
     fig.write_html(prob_evolution_file)
     print(f"📊 Probability evolution plot saved to {prob_evolution_file}")
+
+def create_length_distribution_histograms(results, output_dir, regular_temp, high_temp):
+    """Create histograms showing length distributions for regular vs high temperature"""
+    print("📊 Creating length distribution histograms...")
+    
+    # Extract length data
+    regular_lengths = [r['regular_position'] for r in results]
+    high_temp_lengths = [r['high_temp_position'] for r in results]
+    differences = [r - h for r, h in zip(regular_lengths, high_temp_lengths)]
+    
+    # Create figure with subplots
+    fig = go.Figure()
+    
+    # Regular temperature histogram
+    fig.add_trace(go.Histogram(
+        x=regular_lengths,
+        name=f'Regular Temperature (T={regular_temp})',
+        opacity=0.7,
+        nbinsx=20,
+        marker_color='#2E86AB'
+    ))
+    
+    # High temperature histogram
+    fig.add_trace(go.Histogram(
+        x=high_temp_lengths,
+        name=f'High Temperature (T={high_temp})',
+        opacity=0.7,
+        nbinsx=20,
+        marker_color='#A23B72'
+    ))
+    
+    fig.update_layout(
+        title='Distribution of Subthought Lengths: Regular vs High Temperature',
+        xaxis_title='Tokens to Decision Token',
+        yaxis_title='Frequency',
+        barmode='overlay',
+        showlegend=True,
+        width=800,
+        height=500
+    )
+    
+    # Save histogram
+    hist_file = os.path.join(output_dir, 'length_distribution_histogram.html')
+    fig.write_html(hist_file)
+    print(f"📊 Length distribution histogram saved to {hist_file}")
+    
+    # Create difference histogram
+    fig_diff = go.Figure()
+    
+    fig_diff.add_trace(go.Histogram(
+        x=differences,
+        name='Length Differences (Regular - High)',
+        nbinsx=20,
+        marker_color='#F18F01',
+        opacity=0.8
+    ))
+    
+    # Add vertical line at zero
+    fig_diff.add_vline(x=0, line_dash="dash", line_color="red", 
+                       annotation_text="No difference", annotation_position="top")
+    
+    # Add mean line
+    mean_diff = np.mean(differences)
+    fig_diff.add_vline(x=mean_diff, line_dash="dot", line_color="green",
+                       annotation_text=f"Mean: {mean_diff:.1f}", annotation_position="top")
+    
+    fig_diff.update_layout(
+        title='Distribution of Length Differences (Regular Temperature - High Temperature)',
+        xaxis_title='Length Difference (tokens)',
+        yaxis_title='Frequency',
+        showlegend=False,
+        width=800,
+        height=500
+    )
+    
+    # Save difference histogram
+    diff_hist_file = os.path.join(output_dir, 'length_difference_histogram.html')
+    fig_diff.write_html(diff_hist_file)
+    print(f"📊 Length difference histogram saved to {diff_hist_file}")
+    
+    # Create combined comparison plot
+    fig_combined = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=('Length Distributions', 'Length Differences'),
+        vertical_spacing=0.1
+    )
+    
+    # Add length distributions
+    fig_combined.add_trace(go.Histogram(
+        x=regular_lengths,
+        name=f'Regular (T={regular_temp})',
+        opacity=0.7,
+        nbinsx=15,
+        marker_color='#2E86AB'
+    ), row=1, col=1)
+    
+    fig_combined.add_trace(go.Histogram(
+        x=high_temp_lengths,
+        name=f'High (T={high_temp})',
+        opacity=0.7,
+        nbinsx=15,
+        marker_color='#A23B72'
+    ), row=1, col=1)
+    
+    # Add differences
+    fig_combined.add_trace(go.Histogram(
+        x=differences,
+        name='Differences',
+        nbinsx=15,
+        marker_color='#F18F01',
+        opacity=0.8
+    ), row=2, col=1)
+    
+    # Add zero line for differences
+    fig_combined.add_vline(x=0, line_dash="dash", line_color="red", row=2, col=1)
+    
+    fig_combined.update_layout(
+        title='Subthought Length Analysis: Distributions and Differences',
+        showlegend=True,
+        height=800,
+        width=800
+    )
+    
+    fig_combined.update_xaxes(title_text="Tokens to Decision Token", row=1, col=1)
+    fig_combined.update_xaxes(title_text="Length Difference (tokens)", row=2, col=1)
+    fig_combined.update_yaxes(title_text="Frequency", row=1, col=1)
+    fig_combined.update_yaxes(title_text="Frequency", row=2, col=1)
+    
+    # Save combined plot
+    combined_file = os.path.join(output_dir, 'length_analysis_combined.html')
+    fig_combined.write_html(combined_file)
+    print(f"📊 Combined length analysis plot saved to {combined_file}")
+
+def create_essential_aggregated_plots(results, output_dir, regular_avg, high_temp_avg, regular_temp, high_temp):
+    """Create only the essential aggregated plots for scale experiment"""
+    print("📊 Creating essential aggregated plots...")
+    
+    # Extract data
+    regular_lengths = [r['regular_position'] for r in results]
+    high_temp_lengths = [r['high_temp_position'] for r in results]
+    differences = [r - h for r, h in zip(regular_lengths, high_temp_lengths)]
+    
+    # Create main aggregated comparison plot
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(
+            'Length Distributions (All Examples)', 'Length Differences (Greedy - High)',
+            'Box Plot Comparison', 'Scatter Plot (Paired)'
+        ),
+        specs=[[{"secondary_y": False}, {"secondary_y": False}],
+               [{"secondary_y": False}, {"secondary_y": False}]]
+    )
+    
+    # 1. Length distributions
+    fig.add_trace(go.Histogram(
+        x=regular_lengths, name=f'Greedy (T={regular_temp})',
+        opacity=0.7, nbinsx=20, marker_color='#2E86AB'
+    ), row=1, col=1)
+    
+    fig.add_trace(go.Histogram(
+        x=high_temp_lengths, name=f'High (T={high_temp})',
+        opacity=0.7, nbinsx=20, marker_color='#A23B72'
+    ), row=1, col=1)
+    
+    # 2. Length differences
+    fig.add_trace(go.Histogram(
+        x=differences, name='Differences (Greedy - High)',
+        nbinsx=20, marker_color='#F18F01', opacity=0.8
+    ), row=1, col=2)
+    
+    fig.add_vline(x=0, line_dash="dash", line_color="red", row=1, col=2)
+    fig.add_vline(x=np.mean(differences), line_dash="dot", line_color="green", row=1, col=2)
+    
+    # 3. Box plot comparison
+    fig.add_trace(go.Box(
+        y=regular_lengths, name=f'Greedy (T={regular_temp})',
+        marker_color='#2E86AB'
+    ), row=2, col=1)
+    
+    fig.add_trace(go.Box(
+        y=high_temp_lengths, name=f'High (T={high_temp})',
+        marker_color='#A23B72'
+    ), row=2, col=1)
+    
+    # 4. Scatter plot (paired)
+    fig.add_trace(go.Scatter(
+        x=regular_lengths, y=high_temp_lengths,
+        mode='markers', name='Paired Data',
+        marker_color='#6C757D', marker_size=6
+    ), row=2, col=2)
+    
+    # Add diagonal line
+    max_val = max(max(regular_lengths), max(high_temp_lengths))
+    fig.add_trace(go.Scatter(
+        x=[0, max_val], y=[0, max_val],
+        mode='lines', name='Equal',
+        line_color='red', line_dash='dash'
+    ), row=2, col=2)
+    
+    # Add correlation
+    corr, corr_p = stats.pearsonr(regular_lengths, high_temp_lengths)
+    fig.add_annotation(
+        x=0.05, y=0.95, xref="x4", yref="y4",
+        text=f"r = {corr:.3f}<br>p = {corr_p:.3f}",
+        showarrow=False, bgcolor="white", bordercolor="black"
+    )
+    
+    # Update layout
+    fig.update_layout(
+        title=f'Scale Experiment Results: {len(results)} Examples (Greedy vs High Temperature)',
+        height=800,
+        width=1200,
+        showlegend=True
+    )
+    
+    # Update axes labels
+    fig.update_xaxes(title_text="Tokens to Decision Token", row=1, col=1)
+    fig.update_xaxes(title_text="Length Difference (tokens)", row=1, col=2)
+    fig.update_xaxes(title_text="Method", row=2, col=1)
+    fig.update_xaxes(title_text="Greedy Length", row=2, col=2)
+    
+    fig.update_yaxes(title_text="Frequency", row=1, col=1)
+    fig.update_yaxes(title_text="Frequency", row=1, col=2)
+    fig.update_yaxes(title_text="Tokens to Decision Token", row=2, col=1)
+    fig.update_yaxes(title_text="High Temperature Length", row=2, col=2)
+    
+    # Save aggregated plot
+    aggregated_file = os.path.join(output_dir, 'scale_experiment_aggregated_results.html')
+    fig.write_html(aggregated_file)
+    print(f"📊 Aggregated results plot saved to {aggregated_file}")
+    
+    # Create summary statistics plot
+    create_summary_statistics_plot(regular_lengths, high_temp_lengths, differences, output_dir, regular_temp, high_temp)
+
+def create_summary_statistics_plot(regular_lengths, high_temp_lengths, differences, output_dir, regular_temp, high_temp):
+    """Create summary statistics plot"""
+    
+    # Calculate statistics
+    regular_mean = np.mean(regular_lengths)
+    high_temp_mean = np.mean(high_temp_lengths)
+    diff_mean = np.mean(differences)
+    diff_std = np.std(differences)
+    
+    t_stat, p_value = stats.ttest_rel(regular_lengths, high_temp_lengths)
+    cohens_d = diff_mean / np.std(differences)
+    
+    # Create summary plot
+    fig = go.Figure()
+    
+    # Add bar chart for means
+    fig.add_trace(go.Bar(
+        x=['Greedy', 'High Temperature'],
+        y=[regular_mean, high_temp_mean],
+        marker_color=['#2E86AB', '#A23B72'],
+        text=[f'{regular_mean:.1f}', f'{high_temp_mean:.1f}'],
+        textposition='auto',
+        name='Mean Length'
+    ))
+    
+    # Add error bars
+    fig.add_trace(go.Scatter(
+        x=['Greedy', 'High Temperature'],
+        y=[regular_mean, high_temp_mean],
+        error_y=dict(
+            type='data',
+            array=[np.std(regular_lengths), np.std(high_temp_lengths)],
+            visible=True
+        ),
+        mode='markers',
+        marker=dict(size=8, color='black'),
+        name='Mean ± SD',
+        showlegend=False
+    ))
+    
+    # Add statistics text
+    stats_text = f"""
+    Sample Size: {len(regular_lengths)}
+    Mean Difference: {diff_mean:.2f} ± {diff_std:.2f}
+    t-test: t = {t_stat:.3f}, p = {p_value:.4f}
+    Cohen's d: {cohens_d:.3f}
+    {'Significant' if p_value < 0.05 else 'Not Significant'}
+    """
+    
+    fig.add_annotation(
+        x=0.5, y=0.95, xref="paper", yref="paper",
+        text=stats_text,
+        showarrow=False,
+        bgcolor="lightgray",
+        bordercolor="black",
+        font=dict(size=12)
+    )
+    
+    fig.update_layout(
+        title='Scale Experiment Summary Statistics',
+        yaxis_title='Mean Tokens to Decision Token',
+        xaxis_title='Temperature Condition',
+        height=600,
+        width=800
+    )
+    
+    # Save summary plot
+    summary_file = os.path.join(output_dir, 'scale_experiment_summary.html')
+    fig.write_html(summary_file)
+    print(f"📊 Summary statistics plot saved to {summary_file}")
+
+def create_results_csv(results, output_dir):
+    """Create CSV file with the essential data"""
+    print("📊 Creating results CSV file...")
+    
+    # Prepare data for CSV
+    csv_data = []
+    for i, result in enumerate(results):
+        csv_data.append({
+            'example_id': i + 1,
+            'file': result['file'],
+            'greedy_length': result['regular_position'],
+            'high_temp_length': result['high_temp_position'],
+            'difference': result['regular_position'] - result['high_temp_position']
+        })
+    
+    # Create DataFrame and save to CSV
+    df = pd.DataFrame(csv_data)
+    csv_file = os.path.join(output_dir, 'scale_experiment_results.csv')
+    df.to_csv(csv_file, index=False)
+    
+    print(f"📊 Results CSV saved to {csv_file}")
+    print(f"   Columns: example_id, file, greedy_length, high_temp_length, difference")
+    print(f"   Rows: {len(csv_data)} examples")
+    
+    # Print summary statistics
+    print(f"\n📈 CSV Summary:")
+    print(f"   Greedy mean: {df['greedy_length'].mean():.2f} ± {df['greedy_length'].std():.2f}")
+    print(f"   High temp mean: {df['high_temp_length'].mean():.2f} ± {df['high_temp_length'].std():.2f}")
+    print(f"   Mean difference: {df['difference'].mean():.2f} ± {df['difference'].std():.2f}")
+    
+    return csv_file
 
 if __name__ == "__main__":
     args = parse_args()

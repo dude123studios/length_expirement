@@ -13,8 +13,8 @@ python3 experiment_final_correct.py \
   --output_dir "./test_final_results" \
   --num_examples 2 \
   --max_new_tokens 128 \
-  --low_temp 0.7 \
-  --high_temp 2.5 \
+  --low_temp 0.0 \
+  --high_temp 3.0 \
   --seed 42
 
 echo ""

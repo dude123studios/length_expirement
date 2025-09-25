@@ -19,8 +19,8 @@ python3 experiment_final_correct.py \
   --output_dir "${OUTPUT_DIR}" \
   --num_examples 100 \
   --max_new_tokens 128 \
-  --low_temp 0.7 \
-  --high_temp 2.5 \
+  --low_temp 0.0 \
+  --high_temp 3.0 \
   --seed 42 \
   --device "auto"
 

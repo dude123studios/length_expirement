@@ -1,0 +1,36 @@
+{
+  "args": {
+    "model_name_or_path": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+    "traces_dir": "/Users/atharvnaphade/Downloads/atharv/deepseek-qwen",
+    "output_dir": "./decision_frequency_test_results",
+    "num_examples": 1,
+    "sequence_length": 256,
+    "regular_temp": 0.7,
+    "high_temp": 2.5,
+    "seed": 42,
+    "device": "auto"
+  },
+  "summary": {
+    "num_examples": 1,
+    "sequence_length": 256,
+    "regular_avg": 21.0,
+    "high_temp_avg": 8.0,
+    "regular_std": 0.0,
+    "high_temp_std": 0.0,
+    "difference": -13.0,
+    "t_statistic": NaN,
+    "p_value": NaN,
+    "significant": false
+  },
+  "results": [
+    {
+      "file": "example_0_output.txt",
+      "start_position": 485,
+      "sequence_length": 256,
+      "regular_count": 21,
+      "high_temp_count": 8,
+      "difference": -13,
+      "sequence_text": " me just make sure I didn't make any mistakes. I calculated r correctly as 3, and \u03b8 as \u03c0/2 because the point is on the positive y-axis. I don't think I missed anything here.\n\nWait, just to be thorough..."
+    }
+  ]
+}
