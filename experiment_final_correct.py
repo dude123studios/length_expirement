@@ -37,8 +37,8 @@ def parse_args():
                        help="Directory to save results")
     parser.add_argument('--num_examples', type=int, default=500,
                        help="Number of examples to process")
-    parser.add_argument('--max_new_tokens', type=int, default=128,
-                       help="Maximum tokens to generate per continuation")
+    parser.add_argument('--max_new_tokens', type=int, default=None,
+                       help="Maximum tokens to generate per continuation (default: None, uses regular length as limit)")
     parser.add_argument('--low_temp', type=float, default=0.0,
                        help="Low temperature for baseline (0.0 = greedy generation)")
     parser.add_argument('--high_temp', type=float, default=1.8,
@@ -185,7 +185,7 @@ def select_random_start_position(decision_positions, min_context=10):
     selected_pos = random.choice(valid_positions)
     return selected_pos
 
-def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tokens, decision_token_ids, device, stop_on_high_likelihood=False):
+def generate_continuation(model, tokenizer, prefix_ids, temperature, decision_token_ids, device, stop_on_high_likelihood=False):
     """Generate continuation with temperature sampling, tracking decision token probabilities over time"""
     input_ids = prefix_ids.unsqueeze(0).to(device)
     attention_mask = torch.ones_like(input_ids)
@@ -203,7 +203,7 @@ def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tok
     decision_token_position = None
     
     with torch.no_grad():
-        for step in range(max_new_tokens):
+        for step in range(128):  # Reasonable default limit
             # Get model outputs
             outputs = model(
                 current_ids,
@@ -280,14 +280,14 @@ def generate_continuation(model, tokenizer, prefix_ids, temperature, max_new_tok
             if step % 10 == 0 and torch.cuda.is_available():
                 torch.cuda.empty_cache()
         else:
-            print(f"⚠️ No decision token found in {max_new_tokens} tokens")
+            print(f"⚠️ No decision token found in 128 tokens")
     
     # Final memory cleanup
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
     # Return the position and probability tracking data
-    return decision_token_position if decision_token_position else max_new_tokens, decision_token_probs_over_time
+    return decision_token_position if decision_token_position else 128, decision_token_probs_over_time
 
 def find_next_decision_token_in_original(token_ids, start_pos, decision_token_ids):
     """Find the next decision token in the original text after start_pos"""
@@ -402,7 +402,7 @@ def run_single_experiment(model, tokenizer, trace_file, decision_token_ids, args
         
         print(f"📏 Regular length (original text): {regular_length}")
         
-        # HIGH TEMP: Generate until either highest prob is decision token OR X tokens
+        # HIGH TEMP: Generate until either highest prob is decision token OR regular_length tokens
         high_temp_length, high_temp_probs, high_temp_generated_tokens = generate_continuation_with_limit(
             model, tokenizer, prefix_ids, temperature=args.high_temp, 
             max_tokens=regular_length, decision_token_ids=decision_token_ids, 
